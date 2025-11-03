@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Costos de Cócteles</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module">
+        // Importar funciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // IMPORTACIONES DE AUTENTICACIÓN ACTUALIZADAS
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            signInWithCustomToken, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signOut 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, setDoc, getDoc, getDocs, deleteDoc, collection, onSnapshot, query, where, writeBatch, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuración de Firebase ---
+        // ¡IMPORTANTE! USA TU PROPIA CONFIGURACIÓN SI LA DESPLIEGAS EN NETLIFY
+        
+        // REEMPLAZADO: Esta sección ahora usa tu configuración real de Firebase
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { 
+            apiKey: "AIzaSyAVsnSkROA6_b7DWTUSS_J82qJtZ5aaEs",
+            authDomain: "bar-ko-mixology.firebaseapp.com",
+            projectId: "bar-ko-mixology",
+            storageBucket: "bar-ko-mixology.appspot.com",
+            messagingSenderId: "149985298841",
+            appId: "1:149985298841:web:0888bc4b01045644892b88"
+            // Se eliminó la línea measurementId que no es necesaria
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider(); // Proveedor de Google
+        setLogLevel('debug'); 
+
+        let userId = null; // ID del usuario
+        let ingredientsCollectionRef = null; // Referencia a la colección de ingredientes
+        let recipesCollectionRef = null; // Referencia a la colección de recetas
+
+        let localIngredients = []; // Almacén local de ingredientes
+        let localRecipes = []; // Almacén local de recetas
+        
+        let editingIngredientId = null; // ID del ingrediente que se está editando
+        let editingBaseId = null; // ID de la base que se está editando
+
+        // Elementos de UI para Login
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const appContainer = document.getElementById('appContainer');
+        const loadingMsg = document.getElementById('loadingMsg');
+        const userDisplayName = document.getElementById('userDisplayName');
+
+        // --- MANEJO DE AUTENTICACIÓN ---
+
+        // Iniciar sesión
+        loginBtn.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+                // onAuthStateChanged se encargará del resto
+            } catch (error) {
+                console.error("Error al iniciar sesión con Google:", error);
+                showMessage("Error al iniciar sesión. Inténtalo de nuevo.", "error");
+            }
+        });
+
+        // Cerrar sesión
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged se encargará del resto
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+                showMessage("Error al cerrar sesión.", "error");
+            }
+        });
+
+
+        // --- Autenticación y Carga de Datos ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // *** 1. Usuario HA INICIADO SESIÓN ***
+                console.log("Usuario autenticado:", user.uid);
+                userId = user.uid; // ID REAL del usuario
+                userDisplayName.textContent = `Hola, ${user.displayName || user.email}`;
+                
+                // Mostrar la app y el botón de salir
+                appContainer.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                loginBtn.classList.add('hidden');
+                loadingMsg.classList.add('hidden');
+
+                // Definir referencias a colecciones (privadas del usuario)
+                // ESTA ES LA MAGIA: El path usa el userId. Tus datos están seguros.
+                const userArtifactRef = doc(db, 'artifacts', appId, 'users', userId);
+                ingredientsCollectionRef = collection(userArtifactRef, 'ingredients');
+                recipesCollectionRef = collection(userArtifactRef, 'recipes');
+
+                // Iniciar la escucha de cambios en tiempo real
+                setupSnapshotListeners();
+
+            } else {
+                // *** 2. Usuario NO ha iniciado sesión ***
+                console.log("Usuario no autenticado.");
+                userId = null;
+                
+                // Ocultar la app y mostrar el botón de login
+                appContainer.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                loginBtn.classList.remove('hidden');
+                loadingMsg.classList.add('hidden');
+
+                // Limpiar datos locales
+                localIngredients = [];
+                localRecipes = [];
+                // (Opcional: limpiar listeners si existen)
+            }
+        });
+
+        function setupSnapshotListeners() {
+            if (!ingredientsCollectionRef || !recipesCollectionRef) return;
+
+            // Escuchar ingredientes
+            onSnapshot(ingredientsCollectionRef, (snapshot) => {
+                console.log("Snapshot de ingredientes recibido");
+                localIngredients = [];
+                snapshot.forEach((doc) => {
+                    localIngredients.push({ id: doc.id, ...doc.data() });
+                });
+                console.log("Ingredientes locales actualizados:", localIngredients);
+                renderIngredientsList();
+                renderBaseOptions();
+                renderRecipeIngredientOptions();
+                // Recalcular todo si los ingredientes cambian
+                recalculateAllRecipes(); 
+                renderRecipesList();
+            }, (error) => {
+                console.error("Error al escuchar ingredientes:", error);
+            });
+
+            // Escuchar recetas
+            onSnapshot(recipesCollectionRef, (snapshot) => {
+                console.log("Snapshot de recetas recibido");
+                localRecipes = [];
+                snapshot.forEach((doc) => {
+                    localRecipes.push({ id: doc.id, ...doc.data() });
+                });
+                console.log("Recetas locales actualizadas:", localRecipes);
+                renderRecipesList();
+            }, (error) => {
+                console.error("Error al escuchar recetas:", error);
+            });
+        }
+
+        // --- Lógica de UI (Tabs) ---
+        function setupTabs() {
+            const tabs = document.querySelectorAll('[role="tab"]');
+            const panels = document.querySelectorAll('[role="tabpanel"]');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Desactivar todos los tabs
+                    tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+                    // Activar el tab clickeado
+                    tab.setAttribute('aria-selected', 'true');
+
+                    // Ocultar todos los paneles
+                    panels.forEach(p => p.classList.add('hidden'));
+                    // Mostrar el panel correspondiente
+                    const panelId = tab.getAttribute('aria-controls');
+                    document.getElementById(panelId).classList.remove('hidden');
+                });
+            });
+            // Activar el primer tab por defecto
+            if(tabs.length > 0) {
+                tabs[0].click();
+            }
+        }
+
+        // --- Funciones de Formateo ---
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 3 }).format(value);
+        }
+
+        // --- Lógica de Ingredientes ---
+
+        // Elementos del DOM - Ingredientes
+        const ingredientForm = document.getElementById('ingredientForm');
+        const ingredientName = document.getElementById('ingredientName');
+        const purchasePrice = document.getElementById('purchasePrice');
+        const ingredientType = document.getElementById('ingredientType');
+        const dynamicInputsContainer = document.getElementById('dynamicInputsContainer');
+        const ingredientSubmitButton = document.getElementById('ingredientSubmitButton');
+        const ingredientListContainer = document.getElementById('ingredientListContainer');
+        const noIngredientsMsg = document.getElementById('noIngredientsMsg');
+        const inventoryTotalCostEl = document.getElementById('inventoryTotalCost');
+
+        // Mostrar/ocultar campos dinámicos de ingredientes
+        ingredientType.addEventListener('change', () => {
+            const type = ingredientType.value;
+            dynamicInputsContainer.innerHTML = ''; // Limpiar campos anteriores
+            editingIngredientId = null; // Resetear modo edición si se cambia el tipo
+            ingredientSubmitButton.textContent = 'Guardar Ingrediente';
+
+            if (type === 'liquid') {
+                dynamicInputsContainer.innerHTML = `
+                    <label class="block text-sm font-medium text-purple-100">¿Cuántos ml (mililitros) trae?</label>
+                    <input type="number" id="liquidMl" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-white" required>
+                `;
+            } else if (type === 'solid') {
+                dynamicInputsContainer.innerHTML = `
+                    <label class="block text-sm font-medium text-purple-100">¿Cuántos gr (gramos) trae el paquete?</label>
+                    <input type="number" id="solidGr" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                `;
+            } else if (type === 'pulp') {
+                dynamicInputsContainer.innerHTML = `
+                    <label class="block text-sm font-medium text-purple-100">¿Cuántos gr (gramos) trae el paquete?</label>
+                    <input type="number" id="pulpGr" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                    <label class="block text-sm font-medium text-purple-100 mt-4">¿Cuántos ml (mililitros) de base RINDE en total?</label>
+                    <input type="number" id="pulpMlRinde" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                `;
+            } else if (type === 'unit') {
+                dynamicInputsContainer.innerHTML = `
+                    <label class="block text-sm font-medium text-purple-100">¿Cómo lo compraste?</label>
+                    <select id="unitPurchaseType" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-white" required>
+                        <option value="" disabled selected>Selecciona...</option>
+                        <option value="by_unit">Por unidad (Ej. 1 Piña)</option>
+                        <option value="by_weight">Por peso (Ej. 1kg de Limones)</option>
+                    </select>
+                    <div id="unitDynamicFields" class="mt-4 space-y-4"></div>
+                `;
+                // Event listener para el sub-select
+                document.getElementById('unitPurchaseType').addEventListener('change', (e) => {
+                    const unitType = e.target.value;
+                    const unitFieldsContainer = document.getElementById('unitDynamicFields');
+                    if (unitType === 'by_unit') {
+                        unitFieldsContainer.innerHTML = `
+                            <label class="block text-sm font-medium text-purple-100">¿Cuántas unidades son?</label>
+                            <input type="number" id="unitCount" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                        `;
+                    } else if (unitType === 'by_weight') {
+                        unitFieldsContainer.innerHTML = `
+                            <label class="block text-sm font-medium text-purple-100">¿Cuántos gr (gramos) compraste?</label>
+                            <input type="number" id="unitWeightGr" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                            <label class="block text-sm font-medium text-purple-100 mt-4">¿Cuántas unidades venían en ese peso?</label>
+                            <input type="number" id="unitCountInWeight" class="mt-1 w-full p-3 bg-purple-950/50 border border-purple-700 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500" required>
+                        `;
+                    }
+                });
+            }
+        });
+
+        // Guardar o Actualizar Ingrediente
+        ingredientForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                showMessage("Debes estar autenticado para guardar.", "error");
+                return;
+            }
+
+            const name = ingredientName.value;
+            const price = parseFloat(purchasePrice.value);
+            const type = ingredientType.value;
+            let unitCost = 0;
+            let unit = '';
+            let purchaseInfo = ''; // Descripción de la compra
+            let ingredientData = {
+                name,
+                purchasePrice: price,
+                type,
+                isBase: false, // Las materias primas no son bases
+            };
+
+            // VALIDACIÓN DE NaN (Error común)
+            if (isNaN(price)) {
+                showMessage("El 'Precio Total Compra' debe ser un número válido.", "error");
+                return;
+            }
+
+            try {
+                if (type === 'liquid') {
+                    const ml = parseFloat(document.getElementById('liquidMl').value);
+                    if (isNaN(ml) || ml <= 0) {
+                        showMessage("La cantidad de 'ml' debe ser un número válido y mayor a 0.", "error");
+                        return;
+                    }
+                    unitCost = price / ml;
+                    unit = 'ml';
+                    purchaseInfo = `${ml} ml por ${formatCurrency(price)}`;
+                    ingredientData = { ...ingredientData, ml, unitCost, unit, purchaseInfo };
+                } else if (type === 'solid') {
+                    const gr = parseFloat(document.getElementById('solidGr').value);
+                    if (isNaN(gr) || gr <= 0) {
+                        showMessage("La cantidad de 'gr' debe ser un número válido y mayor a 0.", "error");
+                        return;
+                    }
+                    unitCost = price / gr;
+                    unit = 'gr';
+                    purchaseInfo = `${gr} gr por ${formatCurrency(price)}`;
+                    ingredientData = { ...ingredientData, gr, unitCost, unit, purchaseInfo };
+                } else if (type === 'pulp') {
+                    const gr = parseFloat(document.getElementById('pulpGr').value);
+                    const mlRinde = parseFloat(document.getElementById('pulpMlRinde').value);
+                    if (isNaN(gr) || isNaN(mlRinde) || mlRinde <= 0) {
+                        showMessage("Los 'gr' y 'ml que rinde' deben ser números válidos (ml > 0).", "error");
+                        return;
+                    }
+                    unitCost = price / mlRinde;
+                    unit = 'ml'; // El costo es por ml de producto disuelto
+                    purchaseInfo = `${gr}gr rinde ${mlRinde}ml por ${formatCurrency(price)}`;
+                    ingredientData = { ...ingredientData, gr, mlRinde, unitCost, unit, purchaseInfo };
+                } else if (type === 'unit') {
+                    const unitType = document.getElementById('unitPurchaseType').value;
+                    ingredientData.unitPurchaseType = unitType;
+                    unit = 'unidad';
+                    if (unitType === 'by_unit') {
+                        const count = parseFloat(document.getElementById('unitCount').value);
+                        if (isNaN(count) || count <= 0) {
+                            showMessage("La 'cantidad de unidades' debe ser un número válido y mayor a 0.", "error");
+                            return;
+                        }
+                        unitCost = price / count;
+                        purchaseInfo = `${count} unidades por ${formatCurrency(price)}`;
+                        ingredientData = { ...ingredientData, count, unitCost, unit, purchaseInfo };
+                    } else if (unitType === 'by_weight') {
+                        const gr = parseFloat(document.getElementById('unitWeightGr').value);
+                        const count = parseFloat(document.getElementById('unitCountInWeight').value);
+                        if (isNaN(gr) || isNaN(count) || count <= 0) {
+                            showMessage("Los 'gramos' y 'unidades' deben ser números válidos (unidades > 0).", "error");
+                            return;
+                        }
+                        unitCost = price / count; // Costo por unidad
+                        purchaseInfo = `${count} unidades (${gr}gr) por ${formatCurrency(price)}`;
+                        ingredientData = { ...ingredientData, gr, count, unitCost, unit, purchaseInfo };
+                    }
+                }
+
+                if (editingIngredientId) {
+                    // Actualizar
+                    const docRef = doc(ingredientsCollectionRef, editingIngredientId);
+                    await setDoc(docRef, ingredientData);
+                    showMessage(`Ingrediente "${name}" actualizado.`, "success");
+                } else {
+                    // Crear
+                    await addDoc(ingredientsCollectionRef, ingredientData);
+                    showMessage(`Ingrediente "${name}" guardado.`, "success");
+                }
+
+                ingredientForm.reset();
+                dynamicInputsContainer.innerHTML = '';
+                editingIngredientId = null; // Salir de modo edición
+                ingredientSubmitButton.textContent = 'Guardar Ingrediente';
+
+            } catch (error) {
+                console.error("Error al guardar ingrediente:", error);
+                showMessage("Error al guardar el ingrediente.", "error");
+            }
+        });
+
+        // Cargar ingrediente para editar
+        window.loadIngredientForEdit = (id) => {
+            const ingredient = localIngredients.find(ing => ing.id === id);
+            if (!ingredient) return;
+
+            // No permitir editar bases desde este formulario
+            if (ingredient.isBase) {
+                showMessage("Las bases se editan en la pestaña 'Bases'.", "info");
+                return;
+            }
+
+            console.log("Cargando para editar:", ingredient);
+            editingIngredientId = id;
+
+            ingredientName.value = ingredient.name;
+            purchasePrice.value = ingredient.purchasePrice;
+            ingredientType.value = ingredient.type;
+            
+            // Disparar evento change para poblar campos dinámicos
+            ingredientType.dispatchEvent(new Event('change'));
+
+            // Rellenar campos dinámicos (requiere un pequeño delay para que se creen)
+            setTimeout(() => {
+                if (ingredient.type === 'liquid') {
+                    document.getElementById('liquidMl').value = ingredient.ml;
+                } else if (ingredient.type === 'solid') {
+                    document.getElementById('solidGr').value = ingredient.gr;
+                } else if (ingredient.type === 'pulp') {
+                    document.getElementById('pulpGr').value = ingredient.gr;
+                    document.getElementById('pulpMlRinde').value = ingredient.mlRinde;
+                } else if (ingredient.type === 'unit') {
+                    const unitPurchaseTypeSelect = document.getElementById('unitPurchaseType');
+                    unitPurchaseTypeSelect.value = ingredient.unitPurchaseType;
+                    // Disparar change para crear sub-campos
+                    unitPurchaseTypeSelect.dispatchEvent(new Event('change'));
+
+                    // Rellenar sub-campos (requiere otro delay)
+                    setTimeout(() => {
+                        if (ingredient.unitPurchaseType === 'by_unit') {
+                            document.getElementById('unitCount').value = ingredient.count;
+                        } else if (ingredient.unitPurchaseType === 'by_weight') {
+                            document.getElementById('unitWeightGr').value = ingredient.gr;
+                            document.getElementById('unitCountInWeight').value = ingredient.count;
+                        }
+                    }, 50);
+                }
+                ingredientSubmitButton.textContent = 'Actualizar Ingrediente';
+                window.scrollTo(0, 0); // Subir al inicio del formulario
+            }, 50);
+        };
+
+        // Eliminar ingrediente
+        window.deleteIngredient = async (id) => {
+            // ¡ERROR CRÍTICO! window.confirm() no funciona en el iframe. Se elimina la confirmación.
+            // if (!window.confirm("¿Estás seguro de que quieres eliminar este ingrediente? Esta acción no se puede deshacer.")) return;
+
+
+            try {
+                // Verificar si el ingrediente está en uso
+                // MEJORA DE ESTABILIDAD: Añadir chequeo `b.ingredients &&` por si la data está incompleta.
+                const inUseByBases = localIngredients.filter(b => b.isBase && b.ingredients && b.ingredients.some(i => i.id === id));
+                const inUseByRecipes = localRecipes.filter(r => r.ingredients && r.ingredients.some(i => i.id === id));
+                
+                if (inUseByBases.length > 0 || inUseByRecipes.length > 0) {
+                    showMessage("Este ingrediente está en uso en una Base o Receta y no puede ser eliminado.", "error");
+                    return;
+                }
+
+                await deleteDoc(doc(ingredientsCollectionRef, id));
+                showMessage("Ingrediente eliminado.", "success");
+                // La lista se actualizará sola por el onSnapshot
+            } catch (error) {
+                console.error("Error al eliminar ingrediente:", error);
+                showMessage("Error al eliminar el ingrediente.", "error");
+            }
+        };
+
+        // Renderizar lista de ingredientes
+        function renderIngredientsList() {
+            ingredientListContainer.innerHTML = ''; // Limpiar la lista
+            let totalInventoryCost = 0;
+
+            if (localIngredients.length === 0) {
+                noIngredientsMsg.classList.remove('hidden');
+            } else {
+                noIngredientsMsg.classList.add('hidden');
+            }
+            
+            // Ordenar: primero materias primas, luego bases
+            const sortedIngredients = [...localIngredients].sort((a, b) => {
+                if (a.isBase && !b.isBase) return 1;
+                if (!a.isBase && b.isBase) return -1;
+                return a.name.localeCompare(b.name);
+            });
+
+            sortedIngredients.forEach(ing => {
+                // Sumar solo materias primas al costo de inventario
+                if (!ing.isBase) {
+                    totalInventoryCost += ing.purchasePrice || 0;
+                }
+
+                const unitCostInfo = ing.unitCost ? formatCurrency(ing.unitCost) : 'N/A';
+                // AQUI CAMBIAMOS LOS COLORES DE LAS LISTAS DE INGREDIENTES
+                const isBaseClass = ing.isBase ? 'bg-purple-900/50 border-purple-600' : 'bg-purple-950/30 border-purple-800';
+                
+                // Texto de compra
+                let purchaseInfo = ing.purchaseInfo || `Costo: ${unitCostInfo} / ${ing.unit}`;
+                if (ing.isBase) {
+                    purchaseInfo = `BASE - ${formatCurrency(ing.unitCost)} / ml`;
+                }
+
+                // Crear elemento de lista
+                const itemElement = document.createElement('div');
+                itemElement.className = `p-4 rounded-lg shadow-md flex justify-between items-center ${isBaseClass} border transition-all duration-200 hover:shadow-lg hover:border-blue-500 hover:bg-purple-900/70`;
+                itemElement.id = `ing-${ing.id}`;
+
+                // Contenido del elemento
+                itemElement.innerHTML = `
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">${ing.name} ${ing.isBase ? '<span class="text-xs text-blue-300 ml-1">(BASE)</span>' : ''}</h3>
+                        <p class="text-sm text-purple-200">${unitCostInfo} / ${ing.unit}</p>
+                        <p class="text-xs text-purple-300 opacity-80">${purchaseInfo}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        ${!ing.isBase ? `<button title="Editar" class="p-2 text-blue-300 hover:text-blue-100 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"></path></svg>
+                        </button>` : ''}
+                        <button title="Eliminar" class="p-2 text-red-400 hover:text-red-300 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+                
+                // Asignar eventos
+                const editButton = itemElement.querySelector('button[title="Editar"]');
+                if (editButton) {
+                    editButton.addEventListener('click', () => loadIngredientForEdit(ing.id));
+                }
+                
+                itemElement.querySelector('button[title="Eliminar"]').addEventListener('click', () => deleteIngredient(ing.id));
+
+                // Adjuntar el elemento creado
+                ingredientListContainer.appendChild(itemElement);
+            });
+            
+            // Actualizar el costo total de inventario
+            inventoryTotalCostEl.textContent = formatCurrency(totalInventoryCost);
+        }
+
+
+        // --- Lógica de Bases (Pre-mezclas) ---
+        
+        // Elementos del DOM - Bases
+        const baseForm = document.getElementById('baseForm');
+        const baseName = document.getElementById('baseName');
+        const baseRindeMl = document.getElementById('baseRindeMl');
+        const baseIngredientSelect = document.getElementById('baseIngredientSelect');
+        const baseIngredientQty = document.getElementById('baseIngredientQty');
+        const addBaseIngredientBtn = document.getElementById('addBaseIngredientBtn');
+        const baseIngredientsList = document.getElementById('baseIngredientsList');
+        const baseCostEl = document.getElementById('baseCostEl');
+        const baseCostPerMlEl = document.getElementById('baseCostPerMlEl');
+        const baseSubmitButton = document.getElementById('baseSubmitButton');
+        
+        let currentBaseIngredients = []; // Ingredientes de la base actual
+
+        // Popular dropdown de ingredientes para bases
+        function renderBaseOptions() {
+            baseIngredientSelect.innerHTML = '<option value="" disabled selected>Selecciona un ingrediente...</option>';
+            localIngredients.forEach(ing => {
+                // NO puedes agregar una base a otra base (para simplificar)
+                if (!ing.isBase) {
+                    baseIngredientSelect.innerHTML += `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`;
+                }
+            });
+        }
+
+        // Añadir ingrediente a la base
+        addBaseIngredientBtn.addEventListener('click', () => {
+            const id = baseIngredientSelect.value;
+            const qty = parseFloat(baseIngredientQty.value);
+            if (!id || !qty || qty <= 0) {
+                showMessage("Selecciona un ingrediente y una cantidad válida.", "warn");
+                return;
+            }
+
+            const ingredient = localIngredients.find(ing => ing.id === id);
+            if (!ingredient) return;
+
+            // Verificar si la unidad es compatible (ej. no añadir 'unidades' a una base líquida)
+            if (ingredient.unit !== 'ml' && ingredient.unit !== 'gr') {
+                // ¡ERROR CRÍTICO! window.confirm() no funciona en el iframe. Se elimina la confirmación.
+                /*
+                if (!window.confirm(`Estás agregando "${ingredient.name}" que se mide en ${ingredient.unit}. ¿Estás seguro que el costo es correcto para esta base?`)) {
+                    return;
+                }
+                */
+            }
+
+            // Evitar duplicados
+            if (currentBaseIngredients.some(i => i.id === id)) {
+                showMessage("Ese ingrediente ya está en la base.", "warn");
+                return;
+            }
+
+            const cost = ingredient.unitCost * qty;
+            currentBaseIngredients.push({
+                id: ingredient.id,
+                name: ingredient.name,
+                qty,
+                unit: ingredient.unit,
+                cost
+            });
+
+            renderCurrentBaseIngredients();
+            calculateBaseCost();
+            baseIngredientSelect.value = '';
+            baseIngredientQty.value = '';
+        });
+
+        // Renderizar ingredientes de la base actual
+        function renderCurrentBaseIngredients() {
+            baseIngredientsList.innerHTML = '';
+            if (currentBaseIngredients.length === 0) {
+                baseIngredientsList.innerHTML = '<li class="text-blue-300 text-sm">Aún no hay ingredientes.</li>';
+                return;
+            }
+            currentBaseIngredients.forEach((ing, index) => {
+                baseIngredientsList.innerHTML += `
+                    <li class="flex justify-between items-center p-2 bg-purple-950/50 rounded-md">
+                        <span class="text-white">${ing.name} - ${ing.qty} ${ing.unit}</span>
+                        <span class="text-blue-200">${formatCurrency(ing.cost)}</span>
+                        <button type="button" data-index="${index}" class="text-red-400 hover:text-red-300">&times;</button>
+                    </li>
+                `;
+            });
+        }
+
+        // Eliminar ingrediente de la base actual
+        baseIngredientsList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const index = e.target.getAttribute('data-index');
+                currentBaseIngredients.splice(index, 1);
+                renderCurrentBaseIngredients();
+                calculateBaseCost();
+            }
+        });
+
+        // Calcular costo de la base
+        function calculateBaseCost() {
+            const totalCost = currentBaseIngredients.reduce((acc, ing) => acc + ing.cost, 0);
+            baseCostEl.textContent = formatCurrency(totalCost);
+
+            const rindeMl = parseFloat(baseRindeMl.value);
+            if (rindeMl > 0) {
+                const costPerMl = totalCost / rindeMl;
+                baseCostPerMlEl.textContent = `${formatCurrency(costPerMl)} / ml`;
+            } else {
+                baseCostPerMlEl.textContent = 'N/A';
+            }
+            return totalCost;
+        }
+
+        // Recalcular costo de base cuando cambia el rendimiento
+        baseRindeMl.addEventListener('input', calculateBaseCost);
+
+        // Guardar la Base (como un nuevo ingrediente)
+        baseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                showMessage("Debes estar autenticado para guardar.", "error");
+                return;
+            }
+            
+            const name = baseName.value;
+            const rindeMl = parseFloat(baseRindeMl.value);
+            const totalCost = calculateBaseCost();
+
+            if (!name || !rindeMl || rindeMl <= 0 || currentBaseIngredients.length === 0) {
+                showMessage("Completa el nombre, el rendimiento (ml) y agrega al menos un ingrediente.", "error");
+                return;
+            }
+
+            const unitCost = totalCost / rindeMl; // Costo por ML
+
+            const baseData = {
+                name,
+                isBase: true, // Marcar como base
+                purchasePrice: totalCost, // El "precio de compra" es el costo de sus ingredientes
+                unitCost: unitCost,
+                unit: 'ml', // Las bases siempre se miden en ML
+                mlRinde: rindeMl,
+                purchaseInfo: `${rindeMl} ml por ${formatCurrency(totalCost)}`,
+                ingredients: currentBaseIngredients, // Guardar la receta de la base
+            };
+
+            try {
+                if (editingBaseId) {
+                    // Actualizar (No implementado en esta versión, sería más complejo)
+                    // Por ahora, guardamos como nuevo
+                    // await setDoc(doc(ingredientsCollectionRef, editingBaseId), baseData);
+                    // showMessage(`Base "${name}" actualizada.`, "success");
+                    
+                    // Guardar como nuevo (simplificado)
+                    await addDoc(ingredientsCollectionRef, baseData);
+                    showMessage(`Base "${name}" guardada.`, "success");
+                } else {
+                    // Crear
+                    await addDoc(ingredientsCollectionRef, baseData);
+                    showMessage(`Base "${name}" guardada.`, "success");
+                }
+                
+                // Resetear formulario de base
+                baseForm.reset();
+                currentBaseIngredients = [];
+                renderCurrentBaseIngredients();
+                calculateBaseCost();
+                editingBaseId = null;
+                baseSubmitButton.textContent = 'Guardar Base';
+                
+                // Cambiar a la pestaña de ingredientes para ver la nueva base
+                document.getElementById('tab-ingredients').click();
+
+            } catch (error) {
+                console.error("Error al guardar la base:", error);
+                showMessage("Error al guardar la base.", "error");
+            }
+        });
+
+
+        // --- Lógica de Recetas ---
+
+        // Elementos del DOM - Recetas
+        const recipeForm = document.getElementById('recipeForm');
+        const recipeName = document.getElementById('recipeName');
+        const recipeSizeMl = document.getElementById('recipeSizeMl');
+        const recipeIngredientSelect = document.getElementById('recipeIngredientSelect');
+        const recipeIngredientQty = document.getElementById('recipeIngredientQty');
+        const addRecipeIngredientBtn = document.getElementById('addRecipeIngredientBtn');
+        const recipeIngredientsList = document.getElementById('recipeIngredientsList');
+        const recipeBaseCostEl = document.getElementById('recipeBaseCostEl');
+        
+        const shippingCostInput = document.getElementById('shippingCost');
+        const taxPercentInput = document.getElementById('taxPercent');
+        const profitPercentInput = document.getElementById('profitPercent');
+        
+        const totalProductCostEl = document.getElementById('totalProductCost');
+        const suggestedPriceEl = document.getElementById('suggestedPrice');
+        const recipeListContainer = document.getElementById('recipeListContainer');
+        const noRecipesMsg = document.getElementById('noRecipesMsg');
+
+        let currentRecipeIngredients = []; // Ingredientes de la receta actual
+        let currentRecipeBaseCost = 0;
+        let editingRecipeId = null; // ID de la receta que se está editando
+
+
+        // Popular dropdown de ingredientes para recetas
+        function renderRecipeIngredientOptions() {
+            recipeIngredientSelect.innerHTML = '<option value="" disabled selected>Selecciona un ingrediente...</option>';
+            localIngredients.forEach(ing => {
+                // Aquí puedes agregar CUALQUIER ingrediente (materia prima O base)
+                const label = ing.isBase ? `${ing.name} (BASE)` : ing.name;
+                recipeIngredientSelect.innerHTML += `<option value="${ing.id}">${label} (${ing.unit})</option>`;
+            });
+        }
+
+        // Añadir ingrediente a la receta
+        addRecipeIngredientBtn.addEventListener('click', () => {
+            const id = recipeIngredientSelect.value;
+            const qty = parseFloat(recipeIngredientQty.value);
+            if (!id || !qty || qty <= 0) {
+                showMessage("Selecciona un ingrediente y una cantidad válida.", "warn");
+                return;
+            }
+
+            const ingredient = localIngredients.find(ing => ing.id === id);
+            if (!ingredient) return;
+
+            // Evitar duplicados
+            if (currentRecipeIngredients.some(i => i.id === id)) {
+                showMessage("Ese ingrediente ya está en la receta.", "warn");
+                return;
+            }
+
+            const cost = ingredient.unitCost * qty;
+            currentRecipeIngredients.push({
+                id: ingredient.id,
+                name: ingredient.name,
+                qty,
+                unit: ingredient.unit,
+                cost
+            });
+
+            renderCurrentRecipeIngredients();
+            calculateFinalCosts();
+            recipeIngredientSelect.value = '';
+            recipeIngredientQty.value = '';
+        });
+
+        // Renderizar ingredientes de la receta actual
+        function renderCurrentRecipeIngredients() {
+            recipeIngredientsList.innerHTML = '';
+            if (currentRecipeIngredients.length === 0) {
+                recipeIngredientsList.innerHTML = '<li class="text-purple-300 text-sm">Aún no hay ingredientes.</li>';
+                return;
+            }
+            currentRecipeIngredients.forEach((ing, index) => {
+                recipeIngredientsList.innerHTML += `
+                    <li class="flex justify-between items-center p-2 bg-purple-950/50 rounded-md">
+                        <span class="text-white">${ing.name} - ${ing.qty} ${ing.unit}</span>
+                        <span class="text-blue-200">${formatCurrency(ing.cost)}</span>
+                        <button type="button" data-index="${index}" class="text-red-400 hover:text-red-300">&times;</button>
+                    </li>
+                `;
+            });
+        }
+        
+        // Eliminar ingrediente de la receta actual
+        recipeIngredientsList.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const index = e.target.getAttribute('data-index');
+                currentRecipeIngredients.splice(index, 1);
+                renderCurrentRecipeIngredients();
+                calculateFinalCosts();
+            }
+        });
+
+        // Calcular Costos Finales de la Receta
+        function calculateFinalCosts() {
+            // 1. Costo Base (Ingredientes)
+            currentRecipeBaseCost = currentRecipeIngredients.reduce((acc, ing) => acc + ing.cost, 0);
+            recipeBaseCostEl.textContent = formatCurrency(currentRecipeBaseCost);
+            
+            // 2. Costo Total del Producto
+            const shipping = parseFloat(shippingCostInput.value) || 0;
+            const taxPercent = parseFloat(taxPercentInput.value) || 0;
+            
+            const taxAmount = currentRecipeBaseCost * (taxPercent / 100);
+            const totalCost = currentRecipeBaseCost + shipping + taxAmount;
+            totalProductCostEl.textContent = formatCurrency(totalCost);
+            
+            // 3. Precio de Venta Sugerido
+            const profitPercent = parseFloat(profitPercentInput.value) || 0;
+            const profitAmount = totalCost * (profitPercent / 100);
+            const suggestedPrice = totalCost + profitAmount;
+            suggestedPriceEl.textContent = formatCurrency(suggestedPrice);
+
+            return { totalCost, suggestedPrice };
+        }
+        
+        // Recalcular cuando cambien los inputs de costos
+        [shippingCostInput, taxPercentInput, profitPercentInput].forEach(input => {
+            input.addEventListener('input', calculateFinalCosts);
+        });
+
+        // Guardar Receta
+        recipeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                showMessage("Debes estar autenticado para guardar.", "error");
+                return;
+            }
+
+            const name = recipeName.value;
+            const sizeMl = parseFloat(recipeSizeMl.value);
+            const shipping = parseFloat(shippingCostInput.value) || 0;
+            const taxPercent = parseFloat(taxPercentInput.value) || 0;
+            const profitPercent = parseFloat(profitPercentInput.value) || 0;
+
+            if (!name || !sizeMl || sizeMl <= 0 || currentRecipeIngredients.length === 0) {
+                showMessage("Completa el nombre, tamaño (ml) y agrega al menos un ingrediente.", "error");
+                return;
+            }
+
+            const { totalCost, suggestedPrice } = calculateFinalCosts();
+
+            const recipeData = {
+                name,
+                sizeMl,
+                baseCost: currentRecipeBaseCost,
+                shippingCost: shipping,
+                taxPercent,
+                profitPercent,
+                totalCost,
+                suggestedPrice,
+                ingredients: currentRecipeIngredients, // Guardar la receta
+            };
+
+            try {
+                if (editingRecipeId) {
+                    // Actualizar
+                    await setDoc(doc(recipesCollectionRef, editingRecipeId), recipeData);
+                    showMessage(`Receta "${name}" actualizada.`, "success");
+                } else {
+                    // Crear
+                    await addDoc(recipesCollectionRef, recipeData);
+                    showMessage(`Receta "${name}" guardada.`, "success");
+                }
+                
+                // Resetear formulario de receta
+                recipeForm.reset(); // Limpia inputs básicos
+                shippingCostInput.value = 0;
+                taxPercentInput.value = 19;
+                profitPercentInput.value = 50;
+                currentRecipeIngredients = [];
+                renderCurrentRecipeIngredients();
+                calculateFinalCosts();
+                editingRecipeId = null;
+                document.getElementById('recipeSubmitButton').textContent = 'Guardar Receta y Calcular';
+
+            } catch (error) {
+                console.error("Error al guardar la receta:", error);
+                showMessage("Error al guardar la receta.", "error");
+            }
+        });
+        
+        // Renderizar lista de recetas guardadas
+        function renderRecipesList() {
+            recipeListContainer.innerHTML = '';
+            if (localRecipes.length === 0) {
+                noRecipesMsg.classList.remove('hidden');
+                return;
+            }
+            
+            noRecipesMsg.classList.add('hidden');
+            
+            localRecipes.forEach(recipe => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'p-4 bg-purple-950/50 border border-purple-800 rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl hover:border-blue-600';
+                itemEl.id = `rec-${recipe.id}`;
+                
+                const ingredientsHtml = recipe.ingredients.map(ing => {
+                    // Buscar el nombre actual del ingrediente (por si cambió)
+                    const ingData = localIngredients.find(i => i.id === ing.id);
+                    // MEJORA: Mostrar si el ingrediente fue eliminado
+                    const name = ingData ? ingData.name : `${ing.name} [ELIMINADO]`; // Usar nombre guardado si no se encuentra
+                    return `<li class="text-xs text-purple-200">${ing.qty} ${ing.unit} ${name}</li>`;
+                }).join('');
+
+                itemEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">${recipe.name} (${recipe.sizeMl} ml)</h3>
+                            <p class="text-sm text-purple-300">Costo Base: ${formatCurrency(recipe.baseCost)}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button title="Editar" class="p-2 text-blue-300 hover:text-blue-100 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"></path></svg>
+                            </button>
+                            <button title="Eliminar" class="p-2 text-red-400 hover:text-red-300 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                        <div class="bg-purple-900/40 p-3 rounded-lg text-center">
+                            <span class="text-xs text-purple-200 block">COSTO TOTAL</span>
+                            <span class="text-lg font-bold text-white">${formatCurrency(recipe.totalCost)}</span>
+                            <span class="text-xs text-purple-300 block">(Base + Envío + ${recipe.taxPercent}% Imp.)</span>
+                        </div>
+                        <div class="bg-gradient-to-br from-blue-600 to-purple-600 p-3 rounded-lg text-center shadow-lg">
+                            <span class="text-xs text-white/80 block">PRECIO VENTA</span>
+                            <span class="text-lg font-bold text-white">${formatCurrency(recipe.suggestedPrice)}</span>
+                            <span class="text-xs text-white/80 block">(Costo + ${recipe.profitPercent}% Ganancia)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h4 class="text-sm font-semibold text-purple-200 mb-1">Ingredientes Usados:</h4>
+                        <ul class="list-disc list-inside space-y-1">${ingredientsHtml}</ul>
+                    </div>
+                `;
+                
+                // Asignar eventos
+                itemEl.querySelector('button[title="Editar"]').addEventListener('click', () => loadRecipeForEdit(recipe.id));
+                itemEl.querySelector('button[title="Eliminar"]').addEventListener('click', () => deleteRecipe(recipe.id));
+                
+                recipeListContainer.appendChild(itemEl);
+            });
+        }
+        
+        // Cargar receta para editar
+        function loadRecipeForEdit(id) {
+            const recipe = localRecipes.find(r => r.id === id);
+            if (!recipe) return;
+
+            console.log("Cargando receta para editar:", recipe);
+            editingRecipeId = id;
+
+            recipeName.value = recipe.name;
+            recipeSizeMl.value = recipe.sizeMl;
+            shippingCostInput.value = recipe.shippingCost;
+            taxPercentInput.value = recipe.taxPercent;
+            profitPercentInput.value = recipe.profitPercent;
+            
+            // Recalcular los costos de los ingredientes por si han cambiado
+            currentRecipeIngredients = recipe.ingredients.map(ing => {
+                const liveIngredient = localIngredients.find(i => i.id === ing.id);
+                // Si el ingrediente existe, recalcular su costo. Si no, usar el costo guardado.
+                const unitCost = liveIngredient ? liveIngredient.unitCost : (ing.cost / ing.qty);
+                // Manejar división por cero si qty es 0 o undefined
+                let safeUnitCost = liveIngredient ? liveIngredient.unitCost : 0;
+                if (!liveIngredient && ing.qty) {
+                    safeUnitCost = ing.cost / ing.qty;
+                }
+
+                return {
+                    ...ing,
+                    cost: safeUnitCost * ing.qty,
+                    // MEJORA: Mostrar si el ingrediente fue eliminado
+                    name: liveIngredient ? liveIngredient.name : `${ing.name} [ELIMINADO]`, // Actualizar nombre
+                    unit: liveIngredient ? liveIngredient.unit : ing.unit, // Actualizar unidad
+                };
+            });
+
+            renderCurrentRecipeIngredients();
+            calculateFinalCosts();
+            
+            document.getElementById('recipeSubmitButton').textContent = 'Actualizar Receta';
+            document.getElementById('tab-recipes').click(); // Cambiar a la pestaña de recetas
+            window.scrollTo(0, 0); // Subir al inicio
+        }
+
+        // Eliminar Receta
+        window.deleteRecipe = async (id) => {
+            // ¡ERROR CRÍTICO! window.confirm() no funciona en el iframe. Se elimina la confirmación.
+            // if (!window.confirm("¿Estás seguro de que quieres eliminar esta receta?")) return;
+
+            try {
+                await deleteDoc(doc(recipesCollectionRef, id));
+                showMessage("Receta eliminada.", "success");
+                // La lista se actualizará sola
+            } catch (error) {
+                console.error("Error al eliminar receta:", error);
+                showMessage("Error al eliminar la receta.", "error");
+            }
+        };
+        
+        // Recalcular TODAS las recetas si un ingrediente cambia
+        async function recalculateAllRecipes() {
+            if (localRecipes.length === 0 || localIngredients.length === 0) return;
+            
+            console.log("Recalculando todas las recetas...");
+            const batch = writeBatch(db);
+            let updatesNeeded = false;
+
+            for (const recipe of localRecipes) {
+                let needsUpdate = false;
+                let newBaseCost = 0;
+                
+                const updatedIngredients = recipe.ingredients.map(ing => {
+                    const liveIngredient = localIngredients.find(i => i.id === ing.id);
+                    if (!liveIngredient) {
+                        // El ingrediente fue eliminado, mantener el costo antiguo por ahora
+                        newBaseCost += ing.cost;
+                        return ing;
+                    }
+                    
+                    const newCost = liveIngredient.unitCost * ing.qty;
+                    if (newCost !== ing.cost) {
+                        needsUpdate = true;
+                    }
+                    newBaseCost += newCost;
+                    
+                    return {
+                        ...ing,
+                        cost: newCost,
+                        name: liveIngredient.name,
+                        unit: liveIngredient.unit,
+                    };
+                });
+                
+                if (needsUpdate) {
+                    updatesNeeded = true;
+                    // Recalcular costos finales con el nuevo costo base
+                    const taxAmount = newBaseCost * (recipe.taxPercent / 100);
+                    const totalCost = newBaseCost + recipe.shippingCost + taxAmount;
+                    const profitAmount = totalCost * (recipe.profitPercent / 100);
+                    const suggestedPrice = totalCost + profitAmount;
+                    
+                    const docRef = doc(recipesCollectionRef, recipe.id);
+                    batch.update(docRef, {
+                        ingredients: updatedIngredients,
+                        baseCost: newBaseCost,
+                        totalCost: totalCost,
+                        suggestedPrice: suggestedPrice
+                    });
+                }
+            }
+            
+            if (updatesNeeded) {
+                try {
+                    await batch.commit();
+                    console.log("Precios de recetas actualizados por cambio de ingrediente.");
+                    showMessage("Los precios de tus recetas se han actualizado.", "info");
+                } catch (error) {
+                    console.error("Error al actualizar recetas en lote:", error);
+                }
+            } else {
+                console.log("No se necesitaron actualizaciones en recetas.");
+            }
+        }
+
+
+        // --- Sistema de Mensajes ---
+        function showMessage(message, type = 'info') {
+            const messageContainer = document.getElementById('messageContainer');
+            let bgColor, textColor;
+            if (type === 'success') {
+                bgColor = 'bg-green-600';
+                textColor = 'text-white';
+            } else if (type === 'error') {
+                bgColor = 'bg-red-600';
+                textColor = 'text-white';
+            } else if (type === 'warn') {
+                bgColor = 'bg-yellow-500';
+                textColor = 'text-gray-900';
+            } else {
+                bgColor = 'bg-blue-500';
+                textColor = 'text-white';
+            }
+
+            const messageElement = document.createElement('div');
+            messageElement.className = `p-4 rounded-lg shadow-lg ${bgColor} ${textColor} mb-2 animate-pulse`;
+            messageElement.textContent = message;
+            
+            messageContainer.prepend(messageElement);
+
+            // Autodestruir el mensaje
+            setTimeout(() => {
+                messageElement.classList.remove('animate-pulse');
+                messageElement.classList.add('transition-opacity', 'duration-500', 'opacity-0');
+                setTimeout(() => messageElement.remove(), 500);
+            }, 3000);
+        }
+
+        // --- Inicialización ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            // Los listeners de Firebase se activan con onAuthStateChanged
+        });
+
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a0033; /* Fondo base morado oscuro */
+            /* Ajuste de los degradados radiales para más azul y menos fucsia */
+            background-image: radial-gradient(circle at top left, rgba(68, 136, 255, 0.3), transparent 40%),
+                              radial-gradient(circle at bottom right, rgba(136, 78, 255, 0.3), transparent 40%); /* Más azul, menos fucsia */
+            min-height: 100vh;
+        }
+        
+        /* Estilo de los botones principales (CSS estándar) */
+        .btn-primary {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center; /* Centrar SVG verticalmente */
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            border-width: 1px;
+            border-color: transparent;
+            border-radius: 9999px; /* rounded-full */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            font-size: 1rem; /* text-base */
+            line-height: 1.5rem;
+            font-weight: 500; /* font-medium */
+            color: white;
+            /* Degradado más azulado/púrpura */
+            background-image: linear-gradient(to right, #6A1B9A, #42A5F5, #673AB7, #9C27B0, #2196F3, #3F51B5); /* Tonos de púrpura y azul */
+            background-size: 400% 400%; /* Para el efecto de animación */
+            animation: gradient-animation 10s ease infinite; /* Animación más lenta */
+            transition-property: all;
+            transition-duration: 300ms;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(1);
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            /* Puedes ajustar el background-position aquí para un efecto hover */
+        }
+        .btn-primary:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+            --tw-ring-offset-width: 2px;
+            --tw-ring-color: #6a1b9a; /* ring-purple-700 */
+            --tw-ring-offset-color: #1a0033; /* ring-offset-gray-900 (custom bg) */
+        }
+
+        /* Botón de Logout (Rojo) */
+        .btn-logout {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: rgba(220, 38, 38, 0.2); /* bg-red-600/20 */
+            color: #f87171; /* text-red-400 */
+            border: 1px solid #ef4444; /* border-red-500 */
+            border-radius: 9999px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-logout:hover {
+            background-color: rgba(220, 38, 38, 0.4); /* bg-red-600/40 */
+            color: white;
+        }
+
+        /* Animación del gradiente */
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .btn-secondary {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            background-color: rgba(94, 53, 177, 0.5); /* bg-purple-700/50 */
+            color: #c5aaff; /* text-purple-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            transition-property: background-color, color;
+            transition-duration: 150ms;
+        }
+        .btn-secondary:hover {
+             background-color: rgba(94, 53, 177, 0.8); /* hover:bg-purple-700/80 */
+        }
+
+        /* Estilo de los tabs (NUEVO ESTILO "PILL") */
+        [role="tab"] {
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            text-align: center;
+            font-weight: 500; /* font-medium */
+            border-radius: 9999px; /* rounded-full */
+            transition-property: all;
+            transition-duration: 300ms;
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.25rem;
+            border-bottom-width: 0; /* Quitado el borde inferior */
+        }
+        @media (min-width: 640px) { /* sm: */
+            [role="tab"] {
+                padding-left: 1.5rem; /* sm:px-6 */
+                padding-right: 1.5rem;
+                font-size: 1rem; /* sm:text-base */
+                line-height: 1.5rem;
+            }
+        }
+        
+        [role="tab"][aria-selected="true"] {
+            background-color: #673ab7; /* Un púrpura/azul más oscuro */
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(103, 58, 183, 0.3); /* sombra de ese color */
+            border-color: transparent;
+        }
+        
+        [role="tab"][aria-selected="false"] {
+            border-color: transparent;
+            color: #a78bfa; /* text-purple-300 */
+        }
+        [role="tab"][aria-selected="false"]:hover {
+            color: white; /* hover:text-white */
+            background-color: rgba(167, 139, 250, 0.1); /* hover:bg-purple-300/10 */
+            border-color: transparent;
+        }
+        
+        /* Estilo de los inputs (ARREGLADO) */
+        input[type="text"], input[type="number"], select {
+            margin-top: 0.25rem; /* mt-1 */
+            width: 100%;
+            padding: 0.75rem; /* p-3 */
+            background-color: rgba(49, 0, 82, 0.5); /* bg-purple-950/50 */
+            border-width: 1px;
+            border-color: #6a1b9a; /* border-purple-700 */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            color: white;
+        }
+        input[type="text"]::placeholder, 
+        input[type="number"]::placeholder {
+            color: rgba(167, 139, 250, 0.5); /* placeholder-purple-400/50 */
+        }
+        input[type="text"]:focus, 
+        input[type="number"]:focus, 
+        select:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+            border-color: #6a1b9a; /* focus:border-purple-500 */
+            --tw-ring-color: #6a1b9a; /* focus:ring-purple-500 */
+            --tw-ring-offset-width: 0px;
+        }
+        
+        /* EL ARREGLO para el menú desplegable */
+        select option {
+            background-color: #310052; /* purple-950 */
+            color: #c5aaff; /* purple-300 */
+        }
+
+        /* Estilo del contenedor principal */
+        .main-container {
+            background-color: rgba(26, 0, 51, 0.8); /* Morado oscuro semi-transparente */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(68, 136, 255, 0.3); /* Borde azulado */
+            border-radius: 1.5rem; /* 24px */
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Contenedor de mensajes de notificación */
+        #messageContainer {
+            position: fixed;
+            top: 1.5rem; /* 24px */
+            right: 1.5rem; /* 24px */
+            z-index: 50;
+            width: 350px;
+            max-width: 90%;
+        }
+        /* Mejora visual para los mensajes */
+        #messageContainer > div {
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="text-purple-200">
+
+    <!-- Contenedor de mensajes --><div id="messageContainer"></div>
+
+    <div class="container mx-auto max-w-4xl p-4 sm:p-8">
+        
+        <!-- Cabecera con Logo --><header class="text-center mb-8">
+            <img src="https://i.ibb.co/VZ3VZ3c/Copia-de-Logos-animados-1.png" alt="Logo Emprendimiento" class="w-32 h-32 mx-auto rounded-full shadow-lg border-4 border-purple-700/50"
+             onerror="this.onerror=null; this.src='https://placehold.co/128x128/6b21a8/c5aaff?text=Logo';">
+            <!-- Título mejorado con gradiente --><h1 class="text-4xl font-bold mt-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Calculadora de Costos</h1>
+            <p class="text-lg text-purple-300">Define tus costos y asegura tu ganancia.</p>
+
+            <!-- ZONA DE LOGIN -->
+            <div class="mt-6 flex flex-col items-center gap-4">
+                <!-- Botón de Login (ancho, centrado) -->
+                <button id="loginBtn" class="btn-primary max-w-xs">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 0C4.477 0 0 4.477 0 10c0 4.418 2.865 8.166 6.735 9.492.24.044.328-.104.328-.23c0-.114-.004-1.31-.007-1.704-2.782.602-3.37-1.17-3.37-1.17-.218-.555-.533-.703-.533-.703-.437-.298.033-.29.033-.29.483.034.737.495.737.495.428.733 1.12.52 1.393.398.044-.31.168-.52.306-.64-1.06-.12-2.174-.53-2.174-2.36 0-.522.187-.95.492-1.284-.05-.12-.214-.606.046-1.266 0 0 .4-.128 1.312.49A4.54 4.54 0 0110 8.005c.398 0 .79.04 1.162.118.912-.618 1.31-.49 1.31-.49.26.66.096 1.146.047 1.266.305.334.49.762.49 1.284 0 1.836-1.117 2.238-2.178 2.356.173.148.328.44.328.886 0 .64-.006 1.156-.006 1.313 0 .128.087.276.33.23C17.137 18.164 20 14.416 20 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>
+                    Iniciar Sesión con Google
+                </button>
+
+                <!-- Info de Usuario y Logout (oculto por defecto) -->
+                <div id="logoutSection" class="flex items-center gap-4 hidden">
+                    <span id="userDisplayName" class="text-sm text-purple-300"></span>
+                    <button id="logoutBtn" class="btn-logout hidden">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        Salir
+                    </button>
+                </div>
+            </div>
+            
+            <p id="loadingMsg" class="text-center text-purple-300">Cargando...</p>
+        </header>
+        
+        <!-- Contenedor Principal de la App (Oculto por defecto) -->
+        <div id="appContainer" class="main-container p-6 sm:p-8 hidden">
+            
+            <!-- Navegación por Tabs (Nuevo estilo "Pill") -->
+            <div class="mb-6">
+                <nav class="flex justify-center space-x-2 sm:space-x-4 bg-purple-950/50 p-2 rounded-full" aria-label="Tabs">
+                    <button id="tab-ingredients" role="tab" aria-controls="panel-ingredients" aria-selected="true" class="flex-1 sm:flex-none">
+                        <span class="text-lg sm:text-xl">①</span> Ingredientes
+                    </button>
+                    <button id="tab-bases" role="tab" aria-controls="panel-bases" aria-selected="false" class="flex-1 sm:flex-none">
+                        <span class="text-lg sm:text-xl">②</span> Bases
+                    </button>
+                    <button id="tab-recipes" role="tab" aria-controls="panel-recipes" aria-selected="false" class="flex-1 sm:flex-none">
+                        <span class="text-lg sm:text-xl">③</span> Recetas
+                    </button>
+                </nav>
+            </div>
+            
+            <!-- Panel 1: Ingredientes (Materia Prima) -->
+            <div id="panel-ingredients" role="tabpanel">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    <!-- Columna: Formulario de Ingredientes -->
+                    <div class="space-y-6">
+                        <h2 class="text-2xl font-bold text-white flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Agregar Materia Prima
+                        </h2>
+                        <form id="ingredientForm" class="space-y-4">
+                            <div>
+                                <label for="ingredientName" class="block text-sm font-medium text-purple-100">Nombre del Ingrediente</label>
+                                <input type="text" id="ingredientName" placeholder="Ej. Ron Blanco" class="mt-1" required>
+                            </div>
+                            <div>
+                                <label for="purchasePrice" class="block text-sm font-medium text-purple-100">Precio Total Compra ($)</label>
+                                <input type="number" id="purchasePrice" placeholder="Ej. 15000" class="mt-1" required>
+                            </div>
+                            <div>
+                                <label for="ingredientType" class="block text-sm font-medium text-purple-100">Tipo de Ingrediente</label>
+                                <select id="ingredientType" class="mt-1" required>
+                                    <option value="" disabled selected>Selecciona un tipo...</option>
+                                    <option value="liquid">Líquido (Botella)</option>
+                                    <option value="solid">Sólido/Peso (Bolsa, Paquete)</option>
+                                    <option value="pulp">Pulpa/Concentrado (para disolver)</option>
+                                    <option value="unit">Unidades (Frutas, Envases, etc.)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Campos dinámicos -->
+                            <div id="dynamicInputsContainer" class="space-y-4"></div>
+                            
+                            <button id="ingredientSubmitButton" type="submit" class="btn-primary">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                Guardar Ingrediente
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Columna: Lista de Ingredientes -->
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-bold text-white flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                            Mis Ingredientes y Bases
+                        </h2>
+                        
+                        <!-- Costo Total de Inventario -->
+                        <div class="bg-purple-900/50 border border-purple-700 p-4 rounded-lg text-center">
+                            <span class="text-sm text-purple-300 block">COSTO TOTAL INVENTARIO (MATERIA PRIMA)</span>
+                            <span id="inventoryTotalCost" class="text-2xl font-bold text-white">$0</span>
+                        </div>
+                        
+                        <div id="ingredientListContainer" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            <!-- Los ingredientes se renderizan aquí -->
+                        </div>
+                        <p id="noIngredientsMsg" class="text-purple-300 text-center py-4 hidden">Aún no has agregado ningún ingrediente.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel 2: Bases (Pre-mezclas) -->
+            <div id="panel-bases" role="tabpanel" class="hidden">
+                <form id="baseForm" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    <!-- Columna: Formulario de Base -->
+                    <div class="space-y-6">
+                        <h2 class="text-2xl font-bold text-white flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.24a2 2 0 00-1.806.547a2 2 0 00-.547 1.806l.477 2.387a6 6 0 00.517 3.86l.158.318a6 6 0 00.517 3.86l2.387.477a2 2 0 001.806-.547a2 2 0 00.547-1.806l-.477-2.387a6 6 0 00-.517-3.86l-.158-.318a6 6 0 01-.517-3.86l-2.387-.477a2 2 0 01-.547-1.806a2 2 0 011.806-.547l2.387.477a6 6 0 013.86-.517l.318-.158a6 6 0 003.86-.517l.477-2.387a2 2 0 011.806-.547a2 2 0 01.547 1.806l-.477 2.387a6 6 0 01-.517 3.86l-.158.318a6 6 0 00-.517 3.86l.477 2.387a2 2 0 001.806.547a2 2 0 00.547-1.806l-.477-2.387a6 6 0 00-.517-3.86l-.158-.318a6 6 0 00-.517-3.86zM12 12c-1.105 0-2-.895-2-2s.895-2 2-2 2 .895 2 2-.895 2-2 2z"></path></svg>
+                            Crear una Base (Pre-mezcla)
+                        </h2>
+                        
+                        <div>
+                            <label for="baseName" class="block text-sm font-medium text-purple-100">Nombre de la Base</label>
+                            <input type="text" id="baseName" placeholder="Ej. Base Piña Colada" class="mt-1" required>
+                        </div>
+                        <div>
+                            <label for="baseRindeMl" class="block text-sm font-medium text-purple-100">Rendimiento Total de esta base (ml)</label>
+                            <input type="number" id="baseRindeMl" placeholder="Ej. 3000" class="mt-1" required>
+                        </div>
+                        
+                        <div class="border-t border-purple-800 pt-6 space-y-4">
+                            <h3 class="text-lg font-semibold text-white">Agregar Ingredientes a la Base</h3>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-2">
+                                    <label for="baseIngredientSelect" class="block text-xs font-medium text-purple-100">Ingrediente</label>
+                                    <select id="baseIngredientSelect" class="mt-1"></select>
+                                </div>
+                                <div>
+                                    <label for="baseIngredientQty" class="block text-xs font-medium text-purple-100">Cantidad</label>
+                                    <input type="number" id="baseIngredientQty" placeholder="Ej. 150" class="mt-1">
+                                </div>
+                            </div>
+                            <button type="button" id="addBaseIngredientBtn" class="btn-secondary w-full">Añadir Ingrediente</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Columna: Resumen de la Base -->
+                    <div class="space-y-4">
+                        <h3 class="text-xl font-semibold text-white">Ingredientes de la Base</h3>
+                        <ul id="baseIngredientsList" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            <li class="text-purple-300 text-sm">Aún no hay ingredientes.</li>
+                        </ul>
+                        
+                        <div class="border-t border-purple-700 pt-4 space-y-4">
+                            <div class="flex justify-between items-center text-lg">
+                                <span class="text-purple-200">Costo Total de la Base:</span>
+                                <span id="baseCostEl" class="text-white font-bold">$0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xl p-4 bg-purple-900/50 rounded-lg">
+                                <span class="text-purple-100">Costo por ML:</span>
+                                <span id="baseCostPerMlEl" class="text-white font-bold">N/A</span>
+                            </div>
+                            
+                            <button id="baseSubmitButton" type="submit" class="btn-primary">
+                                Guardar Base (como Ingrediente)
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Panel 3: Recetas (Producto Final) -->
+            <div id="panel-recipes" role="tabpanel" class="hidden">
+                <div class="space-y-8">
+                    
+                    <!-- Sección: Formulario de Receta -->
+                    <div>
+                        <h2 class="text-2xl font-bold text-white flex items-center mb-6">
+                            <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 0l-3-3m3 3l-3 4m0 6H9m6 0l3 3m-3-3l3-4m-6 4v-6m0 6V9"></path></svg>
+                            Crear Receta (Producto Final)
+                        </h2>
+                        
+                        <form id="recipeForm" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Columna: Definición de Receta -->
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="recipeName" class="block text-sm font-medium text-purple-100">Nombre del Producto</label>
+                                    <input type="text" id="recipeName" placeholder="Ej. Mojito 1 Litro" class="mt-1" required>
+                                </div>
+                                <div>
+                                    <label for="recipeSizeMl" class="block text-sm font-medium text-purple-100">Tamaño Final del Producto (ml)</label>
+                                    <input type="number" id="recipeSizeMl" placeholder="Ej. 1000" class="mt-1" required>
+                                </div>
+                                
+                                <!-- Añadir Ingredientes a la Receta -->
+                                <div class="border-t border-purple-800 pt-4 space-y-4">
+                                    <h3 class="text-lg font-semibold text-white">Ingredientes de la Receta</h3>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <div class="col-span-2">
+                                            <label for="recipeIngredientSelect" class="block text-xs font-medium text-purple-100">Ingrediente / Base / Envase</label>
+                                            <select id="recipeIngredientSelect" class="mt-1"></select>
+                                        </div>
+                                        <div>
+                                            <label for="recipeIngredientQty" class="block text-xs font-medium text-purple-100">Cantidad</label>
+                                            <input type="number" id="recipeIngredientQty" placeholder="Ej. 120" class="mt-1">
+                                        </div>
+                                    </div>
+                                    <button type="button" id="addRecipeIngredientBtn" class="btn-secondary w-full">Añadir a la Receta</button>
+                                </div>
+                                
+                                <!-- Lista de ingredientes de la receta -->
+                                <ul id="recipeIngredientsList" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                                    <li class="text-purple-300 text-sm">Aún no hay ingredientes.</li>
+                                </ul>
+                            </div>
+                            
+                            <!-- Columna: Cálculos Finales -->
+                            <div class="space-y-4 p-6 bg-purple-950/40 rounded-2xl border border-purple-800">
+                                <h3 class="text-xl font-semibold text-white">3. Cálculos Finales</h3>
+                                
+                                <div class="flex justify-between items-center text-lg py-2 border-b border-purple-700">
+                                    <span class="text-purple-200">Costo Base (Ingredientes):</span>
+                                    <span id="recipeBaseCostEl" class="text-white font-bold">$0</span>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="shippingCost" class="block text-sm font-medium text-purple-100">Costo de Envío ($) (Opcional)</label>
+                                        <input type="number" id="shippingCost" value="0" class="mt-1">
+                                    </div>
+                                    <div>
+                                        <label for="taxPercent" class="block text-sm font-medium text-purple-100">% Impuesto (ej. SII)</label>
+                                        <input type="number" id="taxPercent" value="19" class="mt-1">
+                                    </div>
+                                    </div>
+                                
+                                <div>
+                                    <label for="profitPercent" class="block text-sm font-medium text-purple-100">% Ganancia Deseada</label>
+                                    <input type="number" id="profitPercent" value="50" class="mt-1">
+                                </div>
+                                
+                                <!-- Resultados -->
+                                <div class="space-y-4 pt-4 border-t border-purple-700">
+                                    <div class="bg-purple-900/50 p-4 rounded-lg text-center">
+                                        <span class="text-sm text-purple-200 block">COSTO TOTAL DEL PRODUCTO</span>
+                                        <span id="totalProductCostEl" class="text-3xl font-bold text-white">$0</span>
+                                        <span class="text-xs text-purple-300 block">(Base + Envío + Impuestos)</span>
+                                    </div>
+                                    <div class="bg-gradient-to-br from-blue-600 to-purple-600 p-4 rounded-lg text-center shadow-lg">
+                                        <span class="text-sm text-white/80 block">PRECIO DE VENTA SUGERIDO</span>
+                                        <span id="suggestedPriceEl" class="text-3xl font-bold text-white">$0</span>
+                                        <span class="text-xs text-white/80 block">(Costo Total + Ganancia)</span>
+                                    </div>
+                                </div>
+                                
+                                <button id="recipeSubmitButton" type="submit" class="btn-primary">
+                                    Guardar Receta y Calcular
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Sección: Recetas Guardadas -->
+                    <div class="border-t border-purple-800 pt-8">
+                        <h2 class="text-2xl font-bold text-white flex items-center mb-6">
+                            <svg class="w-6 h-6 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                            Mis Recetas Guardadas
+                        </h2>
+                        <div id="recipeListContainer" class="space-y-4">
+                            <!-- Las recetas guardadas se renderizan aquí -->
+                        </div>
+                        <p id="noRecipesMsg" class="text-purple-300 text-center py-4 hidden">Aún no has guardado ninguna receta.</p>
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div> <!-- Fin de .main-container -->
+    </div> <!-- Fin de .container -->
+</body>
+</html>
+
+
