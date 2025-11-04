@@ -18,15 +18,13 @@
     
     <!-- 
     =========================================================================
-    LZ-STRING (Versión ESTÁNDAR 1.4.4)
-    Ya no está modificado. Usaremos Base64.
+    LZ-STRING (Versión ESTÁNDAR 1.4.4) - ¡CORREGIDO!
+    La versión anterior estaba corrupta y causaba "o.f is not a function".
     =========================================================================
     -->
     <script>
     // LZ-STRING 1.4.4 (ESTÁNDAR)
-    // Dejamos la librería estándar completa, ya que ahora usaremos btoa/atob
-    // y las funciones compress/decompress estándar.
-    var LZString=function(){function o(o,r){if(null==o)return"";var t,e,n,i={},s={},a="",l="",c="",f=2,u=3,d=2,p=[],m=0,v=0;for(n=0;n.length>n;n+=1)if(a=n.charAt(n),Object.prototype.hasOwnProperty.call(i,a)||(i[a]=u++,s[a]=!0),l=c+a,Object.prototype.hasOwnProperty.call(i,l))c=l;else{if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(t=0;d>t;t+=1)m<<=1,v==r-1?(v=0,p.push(o.f(m)),m=0):v++;for(e=c.charCodeAt(0),t=0;8>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1}else{for(e=1,t=0;d>t;t+=1)m<<=1,v==r-1?(v=0,p.push(o.f(m)),m=0):v++;for(e=c.charCodeAt(0),t=0;16>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1}0==--f&&(f=Math.pow(2,d),d++),delete s[c]}else for(e=i[c],t=0;d>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1;0==--f&&(f=Math.pow(2,d),d++),i[l]=u++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(t=0;d>t;t+=1)m<<=1,v==r-1?(v=0,p.push(o.f(m)),m=0):v++;for(e=c.charCodeAt(0),t=0;8>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1}else{for(e=1,t=0;d>t;t+=1)m<<=1,v==r-1?(v=0,p.push(o.f(m)),m=0):v++;for(e=c.charCodeAt(0),t=0;16>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1}0==--f&&(f=Math.pow(2,d),d++),delete s[c]}else for(e=i[c],t=0;d>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1;0==--f&&(f=Math.pow(2,d),d++)}for(e=2,t=0;d>t;t+=1)m=m<<1|1&e,v==r-1?(v=0,p.push(o.f(m)),m=0):v++,e>>=1;for(;;){if(m<<=1,v==r-1){p.push(o.f(m));break}v++}return p.join("")}function r(o,r){return null==o?"":""==o?null:o._decompress(o.length,32768,function(t){return o.charCodeAt(t)})}var t={_compress:o,_decompress:r,compress:function(r){return o(r,15,function(o){return String.fromCharCode(o+32)})+" "},decompress:function(o){return null==o?"":""==o?null:r(o,32,function(o){return o.charCodeAt(o)-32})},compressToUTF16:function(r){return null==r?"":o(r,15,function(o){return String.fromCharCode(o+32)})+" "},decompressFromUTF16:function(o){return null==o?"":""==o?null:r(o,32,function(o){return o.charCodeAt(o)-32})},compressToBase64:function(r){return null==r?"":o(r,6,function(o){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".charAt(o)})},decompressFromBase64:function(o){return null==o?"":""==o?null:r(o,32,function(o){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(o)})},compressToEncodedURIComponent:function(r){return null==r?"":o(r,6,function(o){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(o)})},decompressFromEncodedURIComponent:function(o){return null==o?"":""==o?null:r(o,32,function(o){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".indexOf(o)})}};return t}();
+    var LZString=function(){var r=String.fromCharCode,t={_compress:function(r,t,e){if(null==r)return"";var n,i,o,a={},s={},u="",l="",c="",f=2,d=3,p=2,h=[],g=0,v=0;for(o=0;o<r.length;o+=1)if(u=r.charAt(o),Object.prototype.hasOwnProperty.call(a,u)||(a[u]=d++,s[u]=!0),l=c+u,Object.prototype.hasOwnProperty.call(a,l))c=l;else{if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<8;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}else{for(i=1,n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<16;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}0==--f&&(f=Math.pow(2,p),p++),delete s[c]}else for(i=a[c],n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;0==--f&&(f=Math.pow(2,p),p++),a[l]=d++,c=String(u)}if(""!==c){if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<8;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}else{for(i=1,n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<16;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}0==--f&&(f=Math.pow(2,p),p++),delete s[c]}else for(i=a[c],n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;0==--f&&(f=Math.pow(2,p),p++)}for(i=2,n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;for(;;){if(g<<=1,v==t-1){h.push(e(g));break}v++}return h.join("")},_decompress:function(r,t,e){var n,i,o,a,s,u,l,c,f,d,p,h,g,v,b,m,y=[],w=4,A=4,S=3,C="",E=r.split(""),O={string:r,val:e(r.charCodeAt(0)),position:t,index:1};for(f=0;f<3;f+=1)y[f]=f;for(p=0,g=Math.pow(2,2),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;switch(n=p){case 0:for(p=0,g=Math.pow(2,8),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;d=i=r(p);break;case 1:for(p=0,g=Math.pow(2,16),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;d=i=r(p);break;case 2:return""}for(y[3]=i,s=b=i;O.index<E.length;){for(p=0,g=Math.pow(2,S),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;switch(h=p){case 0:for(p=0,g=Math.pow(2,8),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;y[w++]=r(p),h=w-1,A--;break;case 1:for(p=0,g=Math.pow(2,16),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;y[w++]=r(p),h=w-1,A--;break;case 2:return b}if(0==A&&(A=Math.pow(2,S),S++),y[h])d=y[h];else{if(h!==w)return null;d=s+s.charAt(0)}b+=d,y[w++]=s+d.charAt(0),A--,s=d}return b},compress:function(e){return t._compress(e,15,function(e){return r(e+32)})+" "},decompress:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(e){return e.charCodeAt(0)-32})},compressToUTF16:function(e){return t._compress(e,15,function(e){return r(e+32)})+" "},decompressFromUTF16:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(e){return e.charCodeAt(0)-32})},compressToBase64:function(e){return t._compress(e,6,function(e){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".charAt(e)})},decompressFromBase64:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(t){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(e.charAt(t))})},compressToEncodedURIComponent:function(e){return t._compress(e,6,function(e){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(e)})},decompressFromEncodedURIComponent:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(t){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".indexOf(e.charAt(t))})}};return t}();
     </script>
 
     <!-- 
@@ -489,7 +487,7 @@
             }
         }
 
-        // ¡¡FUNCIÓN DE GUARDADO CON BASE64!!
+        // ¡¡FUNCIÓN DE GUARDADO CON BASE64!! (¡¡CORREGIDA!!)
         async function saveDataToSheet() {
             if (SCRIPT_URL.includes("PEGA_AQUÍ") || SCRIPT_URL.length < 20) {
                 showAlert("⚠️ Error de Configuración", "No se puede guardar. Configura la `SCRIPT_URL`.");
@@ -506,14 +504,13 @@
             try {
                 const jsonString = JSON.stringify(payload);
                 
-                // 1. Comprimir (usando la función estándar)
-                const compressed = LZString.compress(jsonString);
+                // ¡¡CORRECCIÓN!!
+                // 1. Comprimir Y Convertir a Base64 (usando la función nativa de LZString)
+                // Esto evita el error "Latin1 range" porque LZString.compressToBase64
+                // maneja correctamente los caracteres Unicode antes de codificar.
+                const base64String = LZString.compressToBase64(jsonString);
                 
-                // 2. Convertir a Base64 (función btoa)
-                // btoa convierte la cadena binaria de LZString en una cadena de texto ASCII segura (A-Z, a-z, 0-9, +, /)
-                const base64String = btoa(compressed);
-                
-                // 3. Codificar para URL (esto convierte el '+' y '/')
+                // 2. Codificar para URL (esto convierte el '+' y '/')
                 compressedPayload = encodeURIComponent(base64String);
 
             } catch (e) {
@@ -977,7 +974,7 @@
             const { jsPDF } = window.jspdf;
 
             if (typeof jsPDF.prototype.autoTable === 'undefined') {
-                showAlert("❌ Error", "El plugin de tablas PDF (autoTable) no se cargó correctamente. Por favor, refresca la página e inténtálo de nuevo.");
+                showAlert("❌ Error", "El plugin de tablas PDF (autoTable) no se cargó correctamente. Por favor, refresca la página e inténtalo de nuevo.");
                 return;
             }
 
@@ -1071,5 +1068,3 @@
     </script>
 </body>
 </html>
-
-
