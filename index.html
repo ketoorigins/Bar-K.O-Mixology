@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(v11-Copiar-Lista) Calculadora de Costos 🍹</title>
+    <title>(v12-Copiar-con-Total) Calculadora de Costos 🍹</title>
     
     <!-- TailwindCSS CDN --><script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,10 +15,9 @@
     
     <!-- 
     =========================================================================
-    SOLUCIÓN (v11 - Copiar Lista)
-    Se eliminó la descarga de CSV/PDF.
-    Se reemplazó por un botón "Copiar Lista" que copia los ingredientes
-    al portapapeles para pegar en WhatsApp o Notas.
+    SOLUCIÓN (v12 - Copiar Lista con Total)
+    - Botón "Copiar Lista" para pegar en WhatsApp o Notas.
+    - Se añade el "Costo Total Inventario" al texto copiado.
     =========================================================================
     -->
     
@@ -146,7 +145,7 @@
                         <h3 class="text-sm font-medium text-purple-300 uppercase tracking-wider">Costo Total Inventario</h3>
                         <p id="total-inventory-cost" class="text-2xl font-bold text-green-400">$ 0</p>
                     </div>
-                    <!-- BOTÓN CAMBIADO A "COPIAR LISTA" --><button id="copy-list-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
+                    <!-- BOTÓN "COPIAR LISTA" --><button id="copy-list-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
                         <i data-lucide="clipboard-list" class="w-5 h-5"></i>
                         <span>Copiar Lista 🛒</span>
                     </button>
@@ -217,7 +216,7 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN (v11 - Copiar Lista)
+        // CONFIGURACIÓN (v12 - Copiar Lista con Total)
         // =====================================================================
         
         const SCRIPT_URL_KEY = "calculadora_costos_script_url";
@@ -245,7 +244,7 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM (Actualizado para v11)
+        // ELEMENTOS DEL DOM (Actualizado para v12)
         // =====================================================================
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveConnectionBtn = document.getElementById('save-connection-btn');
@@ -273,7 +272,7 @@
         const alertModalCloseIcon = document.getElementById('alert-modal-close-icon');
         const totalInventoryCostEl = document.getElementById('total-inventory-cost');
         
-        // --- Botón de descarga actualizado ---
+        // --- Botón de Copiar Lista ---
         const copyListBtn = document.getElementById('copy-list-btn');
 
         // =====================================================================
@@ -798,7 +797,7 @@
         }
 
         // =====================================================================
-        // FUNCIÓN COPIAR LISTA DE COMPRAS (NUEVA SOLUCIÓN v11)
+        // FUNCIÓN COPIAR LISTA DE COMPRAS (¡¡¡ACTUALIZADA con Total!!!)
         // =====================================================================
         function copyShoppingList() {
             try {
@@ -815,7 +814,13 @@
                     listContent += `- ${ing.Nombre || 'Ingrediente sin nombre'}\n`;
                 });
 
-                listContent += "\n==================================";
+                // --- ¡NUEVO! ---
+                // Calcular el costo total del inventario
+                const totalCost = localIngredients.reduce((sum, ing) => sum + (ing.Costo_Compra || 0), 0);
+                
+                listContent += "\n==================================\n";
+                listContent += `\nCOSTO TOTAL INVENTARIO: ${formatCLP(totalCost, 0)}\n`;
+                // --- FIN DE LO NUEVO ---
 
                 // Usar el método de textarea para máxima compatibilidad
                 const textArea = document.createElement("textarea");
@@ -830,7 +835,7 @@
                 try {
                     const successful = document.execCommand('copy');
                     if (successful) {
-                        showAlert("✅ ¡Lista Copiada!", "Tu lista de ingredientes se ha copiado al portapapeles. Pégala en WhatsApp o en tu app de Notas.");
+                        showAlert("✅ ¡Lista Copiada!", "Tu lista de ingredientes (con costo total) se ha copiado al portapapeles. Pégala en WhatsApp o en tu app de Notas.");
                     } else {
                         throw new Error('No se pudo copiar');
                     }
@@ -849,7 +854,7 @@
 
 
         // =====================================================================
-        // INICIALIZACIÓN (Actualizado para v11)
+        // INICIALIZACIÓN (Actualizado para v12)
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
