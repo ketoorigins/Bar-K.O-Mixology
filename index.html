@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(v4-SheetDB) Calculadora de Costos 🍹</title>
+    <title>(v6-FixCarga) Calculadora de Costos 🍹</title>
     
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -67,7 +67,7 @@
                 <img src="https://i.ibb.co/VZ3VZ3c/Copia-de-Logos-animados-1.png" alt="Logo" class="h-16 w-16 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/64x64/1a0033/884eff?text=Logo'">
                 <h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter">
                     <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-                        Calculadora de Costos 🍹 (v4-SheetDB)
+                        Calculadora de Costos 🍹 (v6-FixCarga)
                     </span>
                 </h1>
             </div>
@@ -304,12 +304,12 @@
         }
 
         // =====================================================================
-        // FUNCIONES DE COMUNICACIÓN (¡¡REESCRITAS PARA SHEETDB!!)
+        // FUNCIONES DE COMUNICACIÓN (¡¡NUEVAS!!)
         // =====================================================================
 
         function showAlert(title, message) {
             alertModalTitle.textContent = title;
-            alertModalMessage.innerHTML = message; 
+            alertModalMessage.innerHTML = message;
             alertModal.classList.remove('hidden');
         }
 
@@ -328,31 +328,31 @@
                 spinnerEl.classList.add('hidden');
             }
         }
-        
-        // ¡¡NUEVA FUNCIÓN DE CARGA!!
+
+        // ¡¡¡FUNCIÓN `loadDataFromSheet` RESTAURADA (v6)!!!
         async function loadDataFromSheet() {
             if (SHEETDB_BASE_URL.includes("TU_API_ID")) {
-                showAlert("⚠️ Error de Configuración", "Por favor, sigue los pasos para crear tu API en SheetDB.io y pega la URL en la variable `SHEETDB_BASE_URL`.");
+                showAlert("⚠️ Error de Configuración", "Pega tu URL de API de SheetDB en la variable `SHEETDB_BASE_URL`.");
                 return;
             }
             setLoadingState(loadButton, loadText, loadSpinner, true, 'Cargar Datos ☁️');
             
             try {
                 // Cargar ambas hojas en paralelo
-                const [responseIng, responseRec] = await Promise.all([
+                const [responseIngredientes, responseRecetas] = await Promise.all([
                     fetch(SHEETDB_URL_INGREDIENTES),
                     fetch(SHEETDB_URL_RECETAS)
                 ]);
 
-                if (!responseIng.ok) throw new Error(`Error al cargar Ingredientes: ${responseIng.statusText}`);
-                if (!responseRec.ok) throw new Error(`Error al cargar Recetas: ${responseRec.statusText}`);
+                if (!responseIngredientes.ok) throw new Error("No se pudo cargar 'Ingredientes'. Revisa la URL y el nombre de la hoja.");
+                if (!responseRecetas.ok) throw new Error("No se pudo cargar 'Recetas'. Revisa la URL y el nombre de la hoja.");
 
-                const rawIngredients = await responseIng.json();
-                const rawRecipes = await responseRec.json();
-                
-                // Limpiar y parsear los datos al cargar
-                localIngredients = rawIngredients.map(ing => ({
-                    Nombre: ing.Nombre,
+                const dataIngredientes = await responseIngredientes.json();
+                const dataRecetas = await responseRecetas.json();
+
+                // Limpiar y guardar datos (SheetDB puede devolver valores vacíos)
+                localIngredients = (dataIngredientes || []).map(ing => ({
+                    Nombre: ing.Nombre || "",
                     Costo_Compra: parseChileanNumber(ing.Costo_Compra),
                     Tipo_Medida: ing.Tipo_Medida || 'Líquido (ml)',
                     Contenido_Total: parseChileanNumber(ing.Contenido_Total),
@@ -360,9 +360,9 @@
                     Total_Unidades: parseChileanNumber(ing.Total_Unidades)
                 }));
                 
-                localRecipes = rawRecipes.map(rec => ({
-                    Receta: rec.Receta,
-                    Ingrediente: rec.Ingrediente,
+                localRecipes = (dataRecetas || []).map(rec => ({
+                    Receta: rec.Receta || "",
+                    Ingrediente: rec.Ingrediente || "",
                     Cantidad: parseChileanNumber(rec.Cantidad),
                     Unidad: rec.Unidad || 'ml'
                 }));
@@ -374,14 +374,14 @@
             } catch (error) {
                 console.error("Error en loadDataFromSheet:", error);
                 showAlert("❌ Error al Cargar", 
-                    `Ocurrió un error: ${error.message}<br><br><b>Posibles causas:</b><br>1. La URL de SheetDB es incorrecta.<br>2. Tu Google Sheet no está compartido como "Cualquier persona con el enlace".<br>3. Los nombres de las hojas (tabs) en tu Google Sheet no son "Ingredientes" y "Recetas".`
+                    `Ocurrió un error: ${error.message}<br><br><b>Revisa esto:</b><br>1. ¿La URL de SheetDB es correcta?<br>2. ¿Tu Google Sheet está compartido como "Cualquier persona con el enlace"?<br>3. ¿Los nombres de las pestañas (hojas) son "Ingredientes" y "Recetas"?`
                 );
             } finally {
                 setLoadingState(loadButton, loadText, loadSpinner, false, 'Cargar Datos ☁️');
             }
         }
 
-        // ¡¡NUEVA FUNCIÓN DE GUARDADO!!
+        // ¡¡FUNCIÓN DE GUARDADO (v5 - CORREGIDA)!!
         async function saveDataToSheet() {
             if (SHEETDB_BASE_URL.includes("TU_API_ID")) {
                 showAlert("⚠️ Error de Configuración", "No se puede guardar. Configura la `SHEETDB_BASE_URL`.");
@@ -393,40 +393,88 @@
             updateLocalDataFromUI();
             
             try {
-                // 1. Borrar todos los datos antiguos de ambas hojas
-                // Se usa 'all' como condición para borrar todo
-                await Promise.all([
-                    fetch(`${SHEETDB_URL_INGREDIENTES}/all`, { method: 'DELETE' }),
-                    fetch(`${SHEETDB_URL_RECETAS}/all`, { method: 'DELETE' })
-                ]);
+                // --- INICIO DE LA CORRECCIÓN ---
+                // Usaremos arrays para las promesas que SÍ necesitamos ejecutar
+                const deletePromises = [];
+                const postPromises = [];
 
-                // 2. Subir los nuevos datos (SheetDB espera un objeto { data: [...] })
-                const [responseIng, responseRec] = await Promise.all([
-                    fetch(SHEETDB_URL_INGREDIENTES, {
+                // 1. Revisa si hay ingredientes para guardar
+                // Siempre borramos y re-subimos ingredientes, ya que es la hoja principal.
+                deletePromises.push(fetch(`${SHEETDB_URL_INGREDIENTES}/all`, { method: 'DELETE' }));
+                // Solo enviar si hay datos, para no crear filas vacías
+                if (localIngredients && localIngredients.length > 0) {
+                    postPromises.push(fetch(SHEETDB_URL_INGREDIENTES, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ data: localIngredients })
-                    }),
-                    fetch(SHEETDB_URL_RECETAS, {
+                    }));
+                }
+                
+                // 2. Revisa si hay recetas para guardar
+                if (localRecipes && localRecipes.length > 0) {
+                    // SI Y SOLO SI hay recetas, las borramos y las volvemos a subir
+                    deletePromises.push(fetch(`${SHEETDB_URL_RECETAS}/all`, { method: 'DELETE' }));
+                    postPromises.push(fetch(SHEETDB_URL_RECETAS, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ data: localRecipes })
-                    })
-                ]);
+                    }));
+                } else {
+                    // ¡¡IMPORTANTE!! Si no hay recetas, NO intentamos guardar nada en esa hoja.
+                    // PERO SÍ VAMOS A BORRARLAS por si el usuario las borró todas
+                    deletePromises.push(fetch(`${SHEETDB_URL_RECETAS}/all`, { method: 'DELETE' }));
+                    console.log("No hay recetas locales, borrando y saltando guardado de recetas.");
+                }
+                
+                // 3. Ejecutar las operaciones de borrado
+                const deleteResponses = await Promise.all(deletePromises);
+                for (const response of deleteResponses) {
+                     if (!response.ok) {
+                        const data = await response.json();
+                        if (data.error && data.error.includes("Address 'Recetas!A1' not found")) {
+                            // Ignorar este error específico, significa que la hoja ya estaba vacía
+                        } else if (data.error && data.error.includes("Address 'Ingredientes!A1' not found")) {
+                            // Ignorar este error
+                        }
+                        else {
+                            throw new Error(`Error al BORRAR datos: ${data.error || response.statusText}`);
+                        }
+                    }
+                }
 
-                if (!responseIng.ok) throw new Error(`Error al guardar Ingredientes: ${responseIng.statusText}`);
-                if (!responseRec.ok) throw new Error(`Error al guardar Recetas: ${responseRec.statusText}`);
 
-                // 3. Recargar los datos para confirmar
-                await loadDataFromSheet();
+                // 4. Ejecutar las operaciones de subida (solo si hay algo que subir)
+                if (postPromises.length > 0) {
+                    const postResponses = await Promise.all(postPromises);
+                    // Revisar si alguna falló
+                    for (const response of postResponses) {
+                        if (!response.ok) {
+                            const data = await response.json();
+                            const url = response.url;
+                            if (url.includes('Recetas')) {
+                                throw new Error(`Error al guardar Recetas: ${data.error || response.statusText}. ¿Encabezados correctos?`);
+                            } else if (url.includes('Ingredientes')) {
+                                throw new Error(`Error al guardar Ingredientes: ${data.error || response.statusText}. ¿Encabezados correctos?`);
+                            } else {
+                                throw new Error(`Error desconocido al guardar: ${data.error || response.statusText}`);
+                            }
+                        }
+                    }
+                }
+                // --- FIN DE LA CORRECCIÓN ---
+
+                // 5. Recargar los datos para confirmar (ahora más ligero)
+                // En lugar de recargar todo, simplemente aceptamos el estado local
+                renderAllTabs();
                 
                 showAlert("✅ ¡Éxito REAL!", "Los datos se han guardado y sincronizado con SheetDB.");
                 resetSaveButtonState();
 
             } catch (error) {
                 console.error("Error en saveDataToSheet:", error);
+                // Ahora el error SÍ será relevante
                 showAlert("❌ Error al Guardar", 
-                    `Ocurrió un error: ${error.message}<br><br><b>Revisa esto:</b><br>1. ¿Tu plan de SheetDB permite operaciones DELETE y POST?<br>2. ¿La URL es correcta?<br>3. ¿Tu Google Sheet está compartido correctamente?`
+                    `Ocurrió un error: ${error.message}<br><br><b>Revisa esto:</b><br>1. ¿Están bien los encabezados (Fila 1) de tu Google Sheet?<br>2. ¿La URL de SheetDB es correcta?<br>3. ¿Tu Google Sheet está compartido correctamente?`
                 );
             } finally {
                 setLoadingState(saveButton, saveText, saveSpinner, false, 'Guardar en Sheet 💾');
@@ -533,10 +581,11 @@
                 }
 
                 const row = document.createElement('tr');
+                // CORREGIDO: /3D a /30
                 row.innerHTML = `
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Nombre" data-index="${index}" value="${ingredient.Nombre || ''}" class="glass-input w-full" oninput="markUnsavedChanges()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="number" data-key="Costo_Compra" data-index="${index}" value="${costo || ''}" class="glass-input w-full" oninput="markUnsavedChanges();"></td>
-                    <td class="px-3 py-2 border-t border-purple-800/3D"><select data-key="Tipo_Medida" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges(); updateUnitLabel(this);">
+                    <td class="px-3 py-2 border-t border-purple-800/30"><select data-key="Tipo_Medida" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges(); updateUnitLabel(this);">
                             ${renderSelect(ingredientMeasures, medida)}
                         </select>
                     </td>
@@ -577,11 +626,12 @@
                 const unidad = recipe.Unidad || 'ml';
                 const cantidad = recipe.Cantidad || 0;
                 const row = document.createElement('tr');
+                // CORREGIDO: /3D a /30
                 row.innerHTML = `
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Receta" data-index="${index}" value="${recipe.Receta || ''}" class="glass-input w-full" oninput="markUnsavedChanges()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Ingrediente" data-index="${index}" value="${recipe.Ingrediente || ''}" class="glass-input w-full" oninput="markUnsavedChanges()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="number" data-key="Cantidad" data-index="${index}" value="${cantidad || ''}" class="glass-input w-full" oninput="markUnsavedChanges()"></td>
-                    <td class="px-3 py-2 border-t border-purple-800/3D"><select data-key="Unidad" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges()">
+                    <td class="px-3 py-2 border-t border-purple-800/30"><select data-key="Unidad" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges()">
                             ${renderSelect(recipeUnits, unidad)}
                         </select>
                     </td>
@@ -857,6 +907,4 @@
     </script>
 </body>
 </html>
-
-
 
