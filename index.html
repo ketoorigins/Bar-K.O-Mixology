@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
-    <meta charset="UTF-8"> <!-- Corregido el charset -->
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(v2) Calculadora de Costos de Cócteles 🍹</title>
+    <title>(v4-SheetDB) Calculadora de Costos 🍹</title>
     
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,29 +18,19 @@
     
     <!-- 
     =========================================================================
-    LZ-STRING (Versión ESTÁNDAR 1.4.4) - ¡CORREGIDO!
-    La versión anterior estaba corrupta y causaba "o.f is not a function".
+    ¡¡NUEVA SOLUCIÓN!!
+    Ya no se usa codigo.gs ni LZString.
+    1. Ve a sheetdb.io y crea una API con la URL de tu Google Sheet.
+    2. Pega la URL de tu API de SheetDB en la constante SHEETDB_BASE_URL.
     =========================================================================
     -->
-    <script>
-    // LZ-STRING 1.4.4 (ESTÁNDAR)
-    var LZString=function(){var r=String.fromCharCode,t={_compress:function(r,t,e){if(null==r)return"";var n,i,o,a={},s={},u="",l="",c="",f=2,d=3,p=2,h=[],g=0,v=0;for(o=0;o<r.length;o+=1)if(u=r.charAt(o),Object.prototype.hasOwnProperty.call(a,u)||(a[u]=d++,s[u]=!0),l=c+u,Object.prototype.hasOwnProperty.call(a,l))c=l;else{if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<8;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}else{for(i=1,n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<16;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}0==--f&&(f=Math.pow(2,p),p++),delete s[c]}else for(i=a[c],n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;0==--f&&(f=Math.pow(2,p),p++),a[l]=d++,c=String(u)}if(""!==c){if(Object.prototype.hasOwnProperty.call(s,c)){if(c.charCodeAt(0)<256){for(n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<8;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}else{for(i=1,n=0;n<p;n+=1)g<<=1,v==t-1?(v=0,h.push(e(g)),g=0):v++;for(i=c.charCodeAt(0),n=0;n<16;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1}0==--f&&(f=Math.pow(2,p),p++),delete s[c]}else for(i=a[c],n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;0==--f&&(f=Math.pow(2,p),p++)}for(i=2,n=0;n<p;n+=1)g=g<<1|1&i,v==t-1?(v=0,h.push(e(g)),g=0):v++,i>>=1;for(;;){if(g<<=1,v==t-1){h.push(e(g));break}v++}return h.join("")},_decompress:function(r,t,e){var n,i,o,a,s,u,l,c,f,d,p,h,g,v,b,m,y=[],w=4,A=4,S=3,C="",E=r.split(""),O={string:r,val:e(r.charCodeAt(0)),position:t,index:1};for(f=0;f<3;f+=1)y[f]=f;for(p=0,g=Math.pow(2,2),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;switch(n=p){case 0:for(p=0,g=Math.pow(2,8),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;d=i=r(p);break;case 1:for(p=0,g=Math.pow(2,16),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;d=i=r(p);break;case 2:return""}for(y[3]=i,s=b=i;O.index<E.length;){for(p=0,g=Math.pow(2,S),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;switch(h=p){case 0:for(p=0,g=Math.pow(2,8),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;y[w++]=r(p),h=w-1,A--;break;case 1:for(p=0,g=Math.pow(2,16),v=1;v!=g;)a=O.val&O.position,O.position>>=1,0==O.position&&(O.position=t,O.val=e(r.charCodeAt(O.index++))),p|=(a>0?1:0)*v,v<<=1;y[w++]=r(p),h=w-1,A--;break;case 2:return b}if(0==A&&(A=Math.pow(2,S),S++),y[h])d=y[h];else{if(h!==w)return null;d=s+s.charAt(0)}b+=d,y[w++]=s+d.charAt(0),A--,s=d}return b},compress:function(e){return t._compress(e,15,function(e){return r(e+32)})+" "},decompress:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(e){return e.charCodeAt(0)-32})},compressToUTF16:function(e){return t._compress(e,15,function(e){return r(e+32)})+" "},decompressFromUTF16:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(e){return e.charCodeAt(0)-32})},compressToBase64:function(e){return t._compress(e,6,function(e){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".charAt(e)})},decompressFromBase64:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(t){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=".indexOf(e.charAt(t))})},compressToEncodedURIComponent:function(e){return t._compress(e,6,function(e){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".charAt(e)})},decompressFromEncodedURIComponent:function(e){return null==e?"":""==e?null:t._decompress(e,32,function(t){return"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$".indexOf(e.charAt(t))})}};return t}();
-    </script>
 
-    <!-- 
-    =========================================================================
-    LIBRERÍAS PDF
-    =========================================================================
-    -->
+    <!-- LIBRERÍAS PDF (se mantienen) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-
     
     <style>
-        body { 
-            font-family: 'Inter', sans-serif;
-            background-color: #1a0033; 
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #1a0033; }
         body::before {
             content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background-image: radial-gradient(circle at 10% 20%, rgba(136, 78, 255, 0.2) 0%, transparent 40%),
@@ -71,45 +61,13 @@
 
 <body class="text-purple-200 min-h-screen p-4 sm:p-8">
 
-    <!-- 
-    =========================================================================
-    Instrucciones de Implementación (Backend)
-    =========================================================================
-    1. Ve a [sheets.google.com] y crea una Hoja de Cálculo.
-    2. Ve a Extensiones > Apps Script.
-    3. Pega el contenido del archivo `codigo.gs` y guarda 💾.
-    4. En la Hoja de Cálculo, crea dos pestañas (hojas) llamadas EXACTAMENTE:
-       - Ingredientes
-       - Recetas
-    5. En el editor de Apps Script, haz clic en "Implementar" > "Nueva implementación".
-    6. Configuración:
-       - Tipo: Aplicación web.
-       - Ejecutar como: Yo (tu email).
-       - Quién tiene acceso: Cualquier usuario.
-    7. Haz clic en "Implementar". Copia la URL de la aplicación web.
-    8. Pega la URL copiada abajo en la constante `SCRIPT_URL`.
-    
-    ¡IMPORTANTE!
-    CADA VEZ que edites `codigo.gs`, debes Guardar y luego
-    RE-IMPLEMENTAR (Implementar > Gestionar implementaciones > Editar ✏️ > 
-    Versión: "Nueva versión" > Implementar).
-    =========================================================================
-    -->
-
-    <!-- Contenedor principal -->
     <div class="max-w-7xl mx-auto">
-
-        <!-- Encabezado y Controles Principales -->
         <header class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
             <div class="flex items-center space-x-4">
-                <img src="https://i.ibb.co/VZ3VZ3c/Copia-de-Logos-animados-1.png" 
-                     alt="Logo" 
-                     class="h-16 w-16 object-contain"
-                     onerror="this.onerror=null; this.src='https://placehold.co/64x64/1a0033/884eff?text=Logo'">
-                
+                <img src="https://i.ibb.co/VZ3VZ3c/Copia-de-Logos-animados-1.png" alt="Logo" class="h-16 w-16 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/64x64/1a0033/884eff?text=Logo'">
                 <h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter">
                     <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-                        Calculadora de Costos 🍹 (v2)
+                        Calculadora de Costos 🍹 (v4-SheetDB)
                     </span>
                 </h1>
             </div>
@@ -262,21 +220,24 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN
+        // CONFIGURACIÓN (¡¡NUEVA!!)
         // =====================================================================
         
-        // ¡¡PEGA AQUÍ LA URL DE TU SCRIPT!!
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyib3_Fk4EcuLz2oWBPe7PhWZI003ZuzGEX3ifM50jV41Tf1_Gbhy3O9A19G2MMgOaT/exec";
+        // ¡¡PEGA AQUÍ LA URL DE TU API DE SHEETDB.IO!!
+        const SHEETDB_BASE_URL = "https://sheetdb.io/api/v1/5bnj0ui81t60a";
+        
+        // Endpoints para cada hoja
+        const SHEETDB_URL_INGREDIENTES = `${SHEETDB_BASE_URL}?sheet=Ingredientes`;
+        const SHEETDB_URL_RECETAS = `${SHEETDB_BASE_URL}?sheet=Recetas`;
 
         // =====================================================================
-        // ESTADO DE LA APLICACIÓN
+        // ESTADO DE LA APLICACIÓN (Sin cambios)
         // =====================================================================
         let localIngredients = [];
         let localRecipes = [];
         let activeTab = 'calculator';
         let hasUnsavedChanges = false;
         
-        // ¡¡OPCIONES DE MEDIDA ACTUALIZADAS!!
         const ingredientMeasures = [
             { value: 'Líquido (ml)', label: 'Líquido (Botella, Tetra, Lata en ml)', unit: 'ml', baseUnit: 'ml', showRendimiento: 'none' },
             { value: 'Sólido (gr)', label: 'Sólido/Polvo (Paquete, Bolsa en gr)', unit: 'gr', baseUnit: 'gr', showRendimiento: 'none' },
@@ -292,7 +253,7 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM
+        // ELEMENTOS DEL DOM (Sin cambios)
         // =====================================================================
         const loadButton = document.getElementById('load-button');
         const saveButton = document.getElementById('save-button');
@@ -320,59 +281,30 @@
         const downloadPdfBtn = document.getElementById('download-pdf-btn');
 
         // =====================================================================
-        // PARSER Y FORMATTER DE NÚMEROS (¡¡CORREGIDO!!)
+        // PARSER Y FORMATTER DE NÚMEROS (Sin cambios)
         // =====================================================================
-
-        /**
-         * Parsea un número en formato chileno (ej: "$ 1.500,50") a un float (1500.50).
-         * Esta es la ÚNICA función que debe usarse para leer números.
-         */
         function parseChileanNumber(value) {
-            // Si ya es un número limpio, devolverlo.
-            if (typeof value === 'number') {
-                return value;
-            }
-            // Si está vacío, nulo o indefinido, es 0.
-            if (!value) {
-                return 0;
-            }
-            
-            // Convertir a string para poder limpiar.
-            let stringValue = String(value);
-            
-            // Quitar símbolo $, espacios en blanco, y separadores de miles (puntos)
-            stringValue = stringValue.replace(/\$|\s|\./g, '');
-            
-            // Reemplazar la coma decimal por un punto (para parseFloat)
-            stringValue = stringValue.replace(',', '.');
-            
+            if (typeof value === 'number') return value;
+            if (!value) return 0;
+            let stringValue = String(value).replace(/\$|\s|\./g, '').replace(',', '.');
             const num = parseFloat(stringValue);
             return isNaN(num) ? 0 : num;
         }
-
-        /**
-         * Formatea un número al estilo CLP.
-         */
         function formatCLP(value, decimals = 0) {
-            const num = parseChileanNumber(value); // Asegurarse de que es un número
-            if (isNaN(num)) {
-                return "$ 0";
-            }
+            const num = parseChileanNumber(value);
+            if (isNaN(num)) return "$ 0";
             try {
-                const formatter = new Intl.NumberFormat('es-CL', {
-                    style: 'currency',
-                    currency: 'CLP',
-                    minimumFractionDigits: decimals,
-                    maximumFractionDigits: decimals
-                });
-                return formatter.format(num).replace('CLP', '').trim();
+                return new Intl.NumberFormat('es-CL', {
+                    style: 'currency', currency: 'CLP',
+                    minimumFractionDigits: decimals, maximumFractionDigits: decimals
+                }).format(num).replace('CLP', '').trim();
             } catch (e) {
                 return '$ ' + num.toFixed(decimals).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
             }
         }
 
         // =====================================================================
-        // FUNCIONES DE COMUNICACIÓN (JSONP + COMPRESIÓN)
+        // FUNCIONES DE COMUNICACIÓN (¡¡REESCRITAS PARA SHEETDB!!)
         // =====================================================================
 
         function showAlert(title, message) {
@@ -397,100 +329,62 @@
             }
         }
         
-        function jsonpRequest(url, callbackName) {
-            return new Promise((resolve, reject) => {
-                const scriptId = `jsonp-callback-${callbackName}`;
-                const oldScript = document.getElementById(scriptId);
-                if (oldScript) oldScript.remove();
-                
-                const timeoutId = setTimeout(() => {
-                    reject(new Error("Timeout: La solicitud tardó demasiado."));
-                    delete window[callbackName];
-                    const scriptTag = document.getElementById(scriptId);
-                    if (scriptTag) scriptTag.remove();
-                }, 15000); 
-
-                window[callbackName] = (data) => {
-                    clearTimeout(timeoutId);
-                    try {
-                        resolve(data);
-                    } catch (e) {
-                        reject(new Error(`Error inside JSONP callback: ${e.message}`));
-                    } finally {
-                        delete window[callbackName];
-                        const scriptTag = document.getElementById(scriptId);
-                        if (scriptTag) scriptTag.remove();
-                    }
-                };
-                
-                const script = document.createElement('script');
-                script.id = scriptId;
-                script.src = url;
-                script.async = true;
-                script.onerror = () => {
-                    clearTimeout(timeoutId);
-                    reject(new Error("Error de red al intentar cargar el script."));
-                    delete window[callbackName];
-                    script.remove();
-                };
-                document.head.appendChild(script);
-            });
-        }
-
-        // ¡¡FUNCIÓN DE CARGA CORREGIDA!!
+        // ¡¡NUEVA FUNCIÓN DE CARGA!!
         async function loadDataFromSheet() {
-            if (SCRIPT_URL.includes("PEGA_AQUÍ") || SCRIPT_URL.length < 20) {
-                showAlert("⚠️ Error de Configuración", "Por favor, pega la URL de tu Google Apps Script en la variable `SCRIPT_URL`.");
+            if (SHEETDB_BASE_URL.includes("TU_API_ID")) {
+                showAlert("⚠️ Error de Configuración", "Por favor, sigue los pasos para crear tu API en SheetDB.io y pega la URL en la variable `SHEETDB_BASE_URL`.");
                 return;
             }
             setLoadingState(loadButton, loadText, loadSpinner, true, 'Cargar Datos ☁️');
-            const callbackName = `cb_${new Date().getTime()}_load`;
-            const url = `${SCRIPT_URL}?action=load&callback=${callbackName}&v=${new Date().getTime()}`;
+            
             try {
-                const data = await jsonpRequest(url, callbackName);
-                if (data.status === 'success') {
-                    
-                    // ¡¡NUEVA LÓGICA DE LIMPIEZA!!
-                    // Limpiamos los datos de Google Sheets AL RECIBIRLOS.
-                    const rawIngredients = data.ingredients || [];
-                    localIngredients = rawIngredients.map(ing => ({
-                        Nombre: ing.Nombre,
-                        Costo_Compra: parseChileanNumber(ing.Costo_Compra),
-                        Tipo_Medida: ing.Tipo_Medida || 'Líquido (ml)',
-                        Contenido_Total: parseChileanNumber(ing.Contenido_Total),
-                        Rendimiento_ml: parseChileanNumber(ing.Rendimiento_ml),
-                        Total_Unidades: parseChileanNumber(ing.Total_Unidades)
-                    }));
-                    
-                    // Las recetas se parsean al momento de calcular, pero cargamos los números.
-                    const rawRecipes = data.recipes || [];
-                    localRecipes = rawRecipes.map(rec => ({
-                        Receta: rec.Receta,
-                        Ingrediente: rec.Ingrediente,
-                        Cantidad: parseChileanNumber(rec.Cantidad),
-                        Unidad: rec.Unidad || 'ml'
-                    }));
+                // Cargar ambas hojas en paralelo
+                const [responseIng, responseRec] = await Promise.all([
+                    fetch(SHEETDB_URL_INGREDIENTES),
+                    fetch(SHEETDB_URL_RECETAS)
+                ]);
 
-                    renderAllTabs();
-                    showAlert("✅ Éxito", "Datos cargados y procesados correctamente.");
-                    resetSaveButtonState();
-                } else {
-                    throw new Error(data.message || "Error desconocido al cargar datos.");
-                }
+                if (!responseIng.ok) throw new Error(`Error al cargar Ingredientes: ${responseIng.statusText}`);
+                if (!responseRec.ok) throw new Error(`Error al cargar Recetas: ${responseRec.statusText}`);
+
+                const rawIngredients = await responseIng.json();
+                const rawRecipes = await responseRec.json();
+                
+                // Limpiar y parsear los datos al cargar
+                localIngredients = rawIngredients.map(ing => ({
+                    Nombre: ing.Nombre,
+                    Costo_Compra: parseChileanNumber(ing.Costo_Compra),
+                    Tipo_Medida: ing.Tipo_Medida || 'Líquido (ml)',
+                    Contenido_Total: parseChileanNumber(ing.Contenido_Total),
+                    Rendimiento_ml: parseChileanNumber(ing.Rendimiento_ml),
+                    Total_Unidades: parseChileanNumber(ing.Total_Unidades)
+                }));
+                
+                localRecipes = rawRecipes.map(rec => ({
+                    Receta: rec.Receta,
+                    Ingrediente: rec.Ingrediente,
+                    Cantidad: parseChileanNumber(rec.Cantidad),
+                    Unidad: rec.Unidad || 'ml'
+                }));
+
+                renderAllTabs();
+                showAlert("✅ Éxito", "Datos cargados correctamente desde SheetDB.");
+                resetSaveButtonState();
+
             } catch (error) {
                 console.error("Error en loadDataFromSheet:", error);
                 showAlert("❌ Error al Cargar", 
-                    `Ocurrió un error: ${error.message}<br><br><b>Posibles causas:</b><br>1. La URL en \`SCRIPT_URL\` es incorrecta.<br>2. El script \`codigo.gs\` no fue re-implementado (Nueva versión).<br>3. No hay conexión a internet.`
+                    `Ocurrió un error: ${error.message}<br><br><b>Posibles causas:</b><br>1. La URL de SheetDB es incorrecta.<br>2. Tu Google Sheet no está compartido como "Cualquier persona con el enlace".<br>3. Los nombres de las hojas (tabs) en tu Google Sheet no son "Ingredientes" y "Recetas".`
                 );
             } finally {
                 setLoadingState(loadButton, loadText, loadSpinner, false, 'Cargar Datos ☁️');
             }
         }
 
-        // ¡¡FUNCIÓN DE GUARDADO CON BASE64!! (¡¡CORREGIDA!!)
+        // ¡¡NUEVA FUNCIÓN DE GUARDADO!!
         async function saveDataToSheet() {
-            if (SCRIPT_URL.includes("PEGA_AQUÍ") || SCRIPT_URL.length < 20) {
-                showAlert("⚠️ Error de Configuración", "No se puede guardar. Configura la `SCRIPT_URL`.");
+            if (SHEETDB_BASE_URL.includes("TU_API_ID")) {
+                showAlert("⚠️ Error de Configuración", "No se puede guardar. Configura la `SHEETDB_BASE_URL`.");
                 return;
             }
             setLoadingState(saveButton, saveText, saveSpinner, true, 'Guardar en Sheet 💾');
@@ -498,78 +392,41 @@
             // Asegurarse de que los datos locales están actualizados desde la UI
             updateLocalDataFromUI();
             
-            const payload = { ingredients: localIngredients, recipes: localRecipes };
-            
-            let compressedPayload = "";
             try {
-                const jsonString = JSON.stringify(payload);
+                // 1. Borrar todos los datos antiguos de ambas hojas
+                // Se usa 'all' como condición para borrar todo
+                await Promise.all([
+                    fetch(`${SHEETDB_URL_INGREDIENTES}/all`, { method: 'DELETE' }),
+                    fetch(`${SHEETDB_URL_RECETAS}/all`, { method: 'DELETE' })
+                ]);
+
+                // 2. Subir los nuevos datos (SheetDB espera un objeto { data: [...] })
+                const [responseIng, responseRec] = await Promise.all([
+                    fetch(SHEETDB_URL_INGREDIENTES, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: localIngredients })
+                    }),
+                    fetch(SHEETDB_URL_RECETAS, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: localRecipes })
+                    })
+                ]);
+
+                if (!responseIng.ok) throw new Error(`Error al guardar Ingredientes: ${responseIng.statusText}`);
+                if (!responseRec.ok) throw new Error(`Error al guardar Recetas: ${responseRec.statusText}`);
+
+                // 3. Recargar los datos para confirmar
+                await loadDataFromSheet();
                 
-                // ¡¡CORRECCIÓN!!
-                // 1. Comprimir Y Convertir a Base64 (usando la función nativa de LZString)
-                // Esto evita el error "Latin1 range" porque LZString.compressToBase64
-                // maneja correctamente los caracteres Unicode antes de codificar.
-                const base64String = LZString.compressToBase64(jsonString);
-                
-                // 2. Codificar para URL (esto convierte el '+' y '/')
-                compressedPayload = encodeURIComponent(base64String);
+                showAlert("✅ ¡Éxito REAL!", "Los datos se han guardado y sincronizado con SheetDB.");
+                resetSaveButtonState();
 
-            } catch (e) {
-                 showAlert("❌ Error Fatal", `No se pudieron comprimir y codificar los datos. ${e.message}`);
-                 setLoadingState(saveButton, saveText, saveSpinner, false, 'Guardar en Sheet 💾');
-                 return;
-            }
-
-            const callbackName = `cb_${new Date().getTime()}_save`;
-            
-            // Usamos el payload codificado
-            const url = `${SCRIPT_URL}?action=save&callback=${callbackName}&payload=${compressedPayload}&v=${new Date().getTime()}`;
-
-            if (url.length > 2000 && url.length < 8000) {
-                 showAlert("⚠️ Advertencia de Límite", "Estás enviando muchos datos. Si falla, intenta guardar menos cambios a la vez.");
-            } else if (url.length >= 8000) {
-                 showAlert("❌ Error al Guardar", "¡Demasiados datos! La URL es muy larga. Intenta guardar menos cambios a la vez.");
-                 setLoadingState(saveButton, saveText, saveSpinner, false, 'Guardar en Sheet 💾');
-                 return;
-            }
-            
-            try {
-                const data = await jsonpRequest(url, callbackName);
-                
-                if (data.status === 'success') {
-                    // Sincronizar con los datos limpios del servidor
-                    const rawIngredients = data.ingredients || [];
-                    localIngredients = rawIngredients.map(ing => ({
-                        Nombre: ing.Nombre,
-                        Costo_Compra: parseChileanNumber(ing.Costo_Compra),
-                        Tipo_Medida: ing.Tipo_Medida || 'Líquido (ml)',
-                        Contenido_Total: parseChileanNumber(ing.Contenido_Total),
-                        Rendimiento_ml: parseChileanNumber(ing.Rendimiento_ml),
-                        Total_Unidades: parseChileanNumber(ing.Total_Unidades)
-                    }));
-                    
-                    const rawRecipes = data.recipes || [];
-                    localRecipes = rawRecipes.map(rec => ({
-                        Receta: rec.Receta,
-                        Ingrediente: rec.Ingrediente,
-                        Cantidad: parseChileanNumber(rec.Cantidad),
-                        Unidad: rec.Unidad || 'ml'
-                    }));
-
-                    renderAllTabs(); 
-                    resetSaveButtonState();
-                    showAlert("✅ Éxito", "Datos guardados y actualizados.");
-                } else {
-                    throw new Error(data.message || "Error desconocido al guardar datos.");
-                }
             } catch (error) {
                 console.error("Error en saveDataToSheet:", error);
-                let errorMsg = error.message || "Error desconocido";
-                if (errorMsg.includes("Unexpected token")) {
-                    errorMsg = `Error en doGet: ${errorMsg}. Esto suele ser un error en el JSON.`;
-                }
-
                 showAlert("❌ Error al Guardar", 
-                    `Ocurrió un error: ${errorMsg}<br><br><b>Por favor, revisa esto:</b><br>1. ¿Están bien nombradas las Hojas? (<b>Ingredientes</b>, <b>Recetas</b>).<br>2. ¿Re-implementaste el nuevo \`codigo.gs\` seleccionando '<b>Nueva versión</b>'?"`
+                    `Ocurrió un error: ${error.message}<br><br><b>Revisa esto:</b><br>1. ¿Tu plan de SheetDB permite operaciones DELETE y POST?<br>2. ¿La URL es correcta?<br>3. ¿Tu Google Sheet está compartido correctamente?`
                 );
             } finally {
                 setLoadingState(saveButton, saveText, saveSpinner, false, 'Guardar en Sheet 💾');
@@ -577,16 +434,14 @@
         }
 
         // =====================================================================
-        // FUNCIONES DE RENDERIZADO Y UI (¡¡CORREGIDAS!!)
+        // FUNCIONES DE RENDERIZADO Y UI (Sin cambios)
         // =====================================================================
-
         function renderAllTabs() {
             renderIngredientsTable();
             renderRecipesTable();
             renderCalculator();
             switchTab(activeTab);
         }
-
         function switchTab(tabName) {
             activeTab = tabName;
             tabContents.forEach(content => content.classList.add('hidden'));
@@ -594,32 +449,23 @@
             document.getElementById(`tab-${tabName}`).classList.remove('hidden');
             document.querySelector(`.pill-tab[data-tab="${tabName}"]`).classList.add('active');
         }
-        
         function renderSelect(options, selectedValue) {
             return options.map(opt => 
                 `<option value="${opt.value}" ${opt.value === selectedValue ? 'selected' : ''}>${opt.label}</option>`
             ).join('');
         }
-        
         window.updateUnitLabel = function(selectElement) {
             try {
-                // ¡¡IMPORTANTE!! Guardar los datos de la UI antes de redibujar.
                 updateLocalDataFromUI();
-
                 const row = selectElement.closest('tr');
                 if (!row) return;
                 const selectedMeasure = ingredientMeasures.find(m => m.value === selectElement.value);
-                
                 const baseUnit = selectedMeasure ? selectedMeasure.baseUnit : '...';
                 const showRendimiento = selectedMeasure ? selectedMeasure.showRendimiento : 'none';
 
-                // 1. Actualizar etiqueta de "Contenido Total"
                 const unitLabel = row.querySelector('.unit-label');
-                if (unitLabel) {
-                    unitLabel.textContent = `(${baseUnit})`;
-                }
+                if (unitLabel) unitLabel.textContent = `(${baseUnit})`;
 
-                // 2. Mostrar/ocultar "Rendimiento (ml)"
                 const rendimientoMLWrapper = row.querySelector('.rendimiento-ml-wrapper');
                 if (rendimientoMLWrapper) {
                     if (showRendimiento === 'ml') {
@@ -627,11 +473,10 @@
                     } else {
                         rendimientoMLWrapper.classList.add('hidden');
                         const input = rendimientoMLWrapper.querySelector('input');
-                        if (input) input.value = ''; // Limpiar al ocultar
+                        if (input) input.value = '';
                     }
                 }
                 
-                // 3. Mostrar/ocultar "Total Unidades (un)"
                 const totalUNWrapper = row.querySelector('.total-unidades-wrapper');
                 if (totalUNWrapper) {
                     if (showRendimiento === 'un') {
@@ -639,19 +484,15 @@
                     } else {
                         totalUNWrapper.classList.add('hidden');
                         const input = totalUNWrapper.querySelector('input');
-                        if (input) input.value = ''; // Limpiar al ocultar
+                        if (input) input.value = '';
                     }
                 }
                 markUnsavedChanges(); 
-                // Actualizar la tabla para recalcular costos
                 updateLocalDataFromUI();
             } catch (e) {
                 console.error("Error updating unit label:", e);
             }
         }
-
-        // ¡¡LÓGICA DE RENDERIZADO CORREGIDA!!
-        // Ahora solo lee de 'localIngredients' (que ya está limpio).
         function renderIngredientsTable() {
             ingredientsTableBody.innerHTML = '';
             let totalInventoryCost = 0;
@@ -663,7 +504,6 @@
             }
             
             localIngredients.forEach((ingredient, index) => {
-                // Los datos YA están limpios y son números.
                 const costo = ingredient.Costo_Compra || 0;
                 const contenido = ingredient.Contenido_Total || 0;
                 const rendimiento_ml = ingredient.Rendimiento_ml || 0;
@@ -678,24 +518,14 @@
                 
                 if (measureInfo && costo > 0) {
                     baseUnitLabel = measureInfo.baseUnit;
-                    totalInventoryCost += costo; // Añadir al costo total del inventario
+                    totalInventoryCost += costo; 
 
                     if (measureInfo.showRendimiento === 'ml') {
-                        if (rendimiento_ml > 0) {
-                            costPerUnit = costo / rendimiento_ml;
-                            unitLabel = 'ml';
-                        } else if (contenido > 0) {
-                            costPerUnit = costo / contenido;
-                            unitLabel = 'gr';
-                        }
+                        if (rendimiento_ml > 0) { costPerUnit = costo / rendimiento_ml; unitLabel = 'ml'; }
+                        else if (contenido > 0) { costPerUnit = costo / contenido; unitLabel = 'gr'; }
                     } else if (measureInfo.showRendimiento === 'un') {
-                        if (total_unidades > 0) {
-                            costPerUnit = costo / total_unidades;
-                            unitLabel = 'un';
-                        } else if (contenido > 0) {
-                            costPerUnit = costo / contenido;
-                            unitLabel = 'gr';
-                        }
+                        if (total_unidades > 0) { costPerUnit = costo / total_unidades; unitLabel = 'un'; }
+                        else if (contenido > 0) { costPerUnit = costo / contenido; unitLabel = 'gr'; }
                     } else if (measureInfo.showRendimiento === 'none' && contenido > 0) {
                         costPerUnit = costo / contenido;
                         unitLabel = measureInfo.baseUnit;
@@ -737,7 +567,6 @@
             totalInventoryCostEl.textContent = formatCLP(totalInventoryCost, 0);
             lucide.createIcons();
         }
-
         function renderRecipesTable() {
             recipesTableBody.innerHTML = '';
             if (!localRecipes || localRecipes.length === 0) {
@@ -764,7 +593,6 @@
             });
             lucide.createIcons();
         }
-
         function renderCalculator() {
             recipeSelect.innerHTML = '<option value="">-- Elige un cóctel --</option>';
             costResultContainer.classList.add('hidden');
@@ -780,11 +608,8 @@
         }
 
         // =====================================================================
-        // FUNCIONES DE LÓGICA DE DATOS LOCALES (¡¡CORREGIDAS!!)
+        // LÓGICA DE DATOS LOCALES (Sin cambios)
         // =====================================================================
-        
-        // ¡¡FUNCIÓN DE ACTUALIZACIÓN CORREGIDA!!
-        // Ahora usa parseChileanNumber para leer de la UI.
         function updateLocalDataFromUI() {
             const ingredientRows = ingredientsTableBody.querySelectorAll('tr');
             const newIngredients = [];
@@ -818,31 +643,25 @@
             });
             localRecipes = newRecipes;
             
-            // Re-renderizar solo lo necesario
-            renderIngredientsTable(); // Recalcula los costos por unidad y el total de inventario
+            renderIngredientsTable(); 
             renderCalculator();
         }
-
         function addIngredientRow() {
-            // Añadir objeto con números limpios
             localIngredients.push({ Nombre: "", Costo_Compra: 0, Tipo_Medida: "Líquido (ml)", Contenido_Total: 0, Rendimiento_ml: 0, Total_Unidades: 0 });
             renderIngredientsTable();
             markUnsavedChanges();
         }
-
         window.deleteIngredientRow = function(button) {
             const index = parseInt(button.dataset.index);
             localIngredients.splice(index, 1);
             renderIngredientsTable();
             markUnsavedChanges();
         }
-
         function addRecipeRow() {
             localRecipes.push({ Receta: "", Ingrediente: "", Cantidad: 0, Unidad: "ml" });
             renderRecipesTable();
             markUnsavedChanges();
         }
-
         window.deleteRecipeRow = function(button) {
             const index = parseInt(button.dataset.index);
             localRecipes.splice(index, 1);
@@ -850,13 +669,8 @@
             renderCalculator();
             markUnsavedChanges();
         }
-
-        // ¡¡LÓGICA DE CÁLCULO CORREGIDA!!
-        // Ahora lee de 'localIngredients' (datos limpios).
         function calculateCost() {
-            // Actualizar los datos de la UI a local por si acaso
             updateLocalDataFromUI();
-
             const selectedRecipeName = recipeSelect.value;
             if (!selectedRecipeName) {
                 showAlert("❌ Error", "Por favor, selecciona una receta.");
@@ -901,9 +715,8 @@
 
             recipeIngredients.forEach(item => {
                 const ingredientName = item.Ingrediente || "";
-                const amount = item.Cantidad; // Ya es un número
+                const amount = item.Cantidad; 
                 const unitNeeded = item.Unidad || 'ml';
-                
                 const ingredientCosts = ingredientCostMap.get(ingredientName.toLowerCase());
 
                 if (ingredientCosts && ingredientCosts[unitNeeded] && amount > 0) {
@@ -923,7 +736,6 @@
                     } else if (!ingredientCosts[unitNeeded]) {
                         errorMsg = `Error: Receta pide '${unitNeeded}' pero el costo para esa unidad no está disponible.`;
                     }
-                    
                     breakdownHTML += `
                         <li class="flex justify-between items-center text-red-400">
                             <span>${ingredientName} <span class="text-xs">(${amount}${unitNeeded})</span></span>
@@ -935,13 +747,10 @@
             if (hasMissingIngredients) {
                 breakdownHTML += `<li class="text-yellow-400 text-xs mt-4">Algunos costos no pudieron ser calculados. Revisa la pestaña 'Ingredientes' y la 'Receta'.</li>`;
             }
-
-            totalCostEl.textContent = formatCLP(totalCost, 0); // Total redondeado
+            totalCostEl.textContent = formatCLP(totalCost, 0);
             costBreakdownEl.innerHTML = breakdownHTML;
             costResultContainer.classList.remove('hidden');
         }
-
-        // onclick debe ser global
         window.markUnsavedChanges = function() {
             if (hasUnsavedChanges) return;
             hasUnsavedChanges = true;
@@ -951,7 +760,6 @@
             const saveIcon = saveButton.querySelector('i[data-lucide="save"]');
             if (saveIcon) saveIcon.classList.add('animate-pulse');
         }
-
         function resetSaveButtonState() {
             hasUnsavedChanges = false;
             saveButton.classList.add('from-green-500', 'to-teal-500', 'hover:from-green-600', 'hover:to-teal-600');
@@ -962,34 +770,24 @@
         }
 
         // =====================================================================
-        // FUNCIÓN DESCARGAR PDF
+        // FUNCIÓN DESCARGAR PDF (Sin cambios)
         // =====================================================================
         function downloadIngredientsPDF() {
-            
             if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
-                showAlert("❌ Error", "La librería PDF principal (jsPDF) no se cargó correctamente. Por favor, refresca la página e inténtalo de nuevo.");
-                return;
+                showAlert("❌ Error", "La librería PDF principal (jsPDF) no se cargó correctamente."); return;
             }
-            
             const { jsPDF } = window.jspdf;
-
             if (typeof jsPDF.prototype.autoTable === 'undefined') {
-                showAlert("❌ Error", "El plugin de tablas PDF (autoTable) no se cargó correctamente. Por favor, refresca la página e inténtalo de nuevo.");
-                return;
+                showAlert("❌ Error", "El plugin de tablas PDF (autoTable) no se cargó correctamente."); return;
             }
-
             try {
-                // Asegurarse de que los datos están actualizados
                 updateLocalDataFromUI();
-
                 const doc = new jsPDF();
                 const tableData = [];
                 let totalCost = 0;
-
                 localIngredients.forEach(ing => {
-                    const costoCompra = ing.Costo_Compra; // Ya es un número limpio
+                    const costoCompra = ing.Costo_Compra;
                     totalCost += costoCompra;
-
                     tableData.push([
                         ing.Nombre,
                         formatCLP(costoCompra, 0), 
@@ -997,14 +795,9 @@
                         `${ing.Contenido_Total || 0} ${ingredientMeasures.find(m => m.value === ing.Tipo_Medida)?.baseUnit || ''}`,
                     ]);
                 });
-
-                doc.setFontSize(18);
-                doc.text("Reporte de Costos de Inventario", 14, 22);
-
-                doc.setFontSize(11);
-                doc.setTextColor(100);
+                doc.setFontSize(18); doc.text("Reporte de Costos de Inventario", 14, 22);
+                doc.setFontSize(11); doc.setTextColor(100);
                 doc.text(`Generado el: ${new Date().toLocaleDateString('es-CL')}`, 14, 29);
-
                 doc.autoTable({
                     startY: 35,
                     head: [['Nombre del Ingrediente', 'Costo Compra', 'Tipo de Medida', 'Contenido']],
@@ -1012,7 +805,6 @@
                     theme: 'striped',
                     headStyles: { fillColor: [76, 29, 149] }, 
                 });
-
                 doc.autoTable({
                     startY: doc.lastAutoTable.finalY + 1,
                     body: [
@@ -1023,25 +815,22 @@
                     ],
                     theme: 'plain',
                 });
-
                 doc.save('reporte_inventario_costos.pdf');
-
             } catch (error) {
                 console.error("Error al generar el PDF:", error);
                 showAlert("❌ Error Fatal", `No se pudo generar el PDF. Error: ${error.message}`);
             }
         }
 
-
         // =====================================================================
-        // INICIALIZACIÓN
+        // INICIALIZACIÓN (Sin cambios)
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 lucide.createIcons();
             } catch (e) {
-                console.error("Error al inicializar Lucide icons. ¿CDN caído?", e);
-                showAlert("⚠️ Error de Iconos", "No se pudieron cargar los iconos (lucide). La aplicación funcionará, pero se verá incompleta.");
+                console.error("Error al inicializar Lucide icons.", e);
+                showAlert("⚠️ Error de Iconos", "No se pudieron cargar los iconos (lucide).");
             }
             
             loadButton.addEventListener('click', loadDataFromSheet);
@@ -1068,4 +857,5 @@
     </script>
 </body>
 </html>
+
 
