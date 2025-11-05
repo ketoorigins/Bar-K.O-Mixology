@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(v9-Sheets-UI) Calculadora de Costos 🍹</title>
+    <title>(v11-Copiar-Lista) Calculadora de Costos 🍹</title>
     
     <!-- TailwindCSS CDN --><script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,14 +15,12 @@
     
     <!-- 
     =========================================================================
-    SOLUCIÓN FINAL (v9 - Google Sheets con UI de Conexión)
-    1. Esta versión usa la misma arquitectura que tu "App de Deudas".
-    2. Pega el script 'codigo_costos.gs' en Google Apps Script.
-    3. Implementa el script como "Web App" (dando acceso a "Cualquier usuario").
-    4. Pega la URL de la Web App en el campo de texto de esta aplicación.
+    SOLUCIÓN (v11 - Copiar Lista)
+    Se eliminó la descarga de CSV/PDF.
+    Se reemplazó por un botón "Copiar Lista" que copia los ingredientes
+    al portapapeles para pegar en WhatsApp o Notas.
     =========================================================================
-    --><!-- LIBRERÍAS PDF (se mantienen) --><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    -->
     
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #1a0033; }
@@ -58,7 +56,7 @@
 
     <div class="max-w-7xl mx-auto">
 
-        <!-- ===================================================================== --><!-- SECCIÓN DE CONEXIÓN (NUEVA) --><!-- ===================================================================== --><section class="glass-card p-6 md:p-8 mb-8">
+        <!-- ===================================================================== --><!-- SECCIÓN DE CONEXIÓN --><!-- ===================================================================== --><section class="glass-card p-6 md:p-8 mb-8">
             <h2 class="text-2xl font-bold text-white mb-4">🔗 Conexión con Google Sheets</h2>
             <div class="space-y-4">
                 <label for="script-url-input" class="block text-sm font-medium text-purple-300">URL de la Aplicación Web (Apps Script)</label>
@@ -148,9 +146,9 @@
                         <h3 class="text-sm font-medium text-purple-300 uppercase tracking-wider">Costo Total Inventario</h3>
                         <p id="total-inventory-cost" class="text-2xl font-bold text-green-400">$ 0</p>
                     </div>
-                    <button id="download-pdf-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
-                        <i data-lucide="file-down" class="w-5 h-5"></i>
-                        <span>Descargar PDF 📄</span>
+                    <!-- BOTÓN CAMBIADO A "COPIAR LISTA" --><button id="copy-list-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
+                        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                        <span>Copiar Lista 🛒</span>
                     </button>
                 </div>
 
@@ -219,10 +217,9 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN (v9 - Google Sheets con UI de Conexión)
+        // CONFIGURACIÓN (v11 - Copiar Lista)
         // =====================================================================
         
-        // Esta es la clave para guardar la URL del script en localStorage
         const SCRIPT_URL_KEY = "calculadora_costos_script_url";
 
         // =====================================================================
@@ -248,45 +245,36 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM (Actualizado para v9)
+        // ELEMENTOS DEL DOM (Actualizado para v11)
         // =====================================================================
-        // --- Nueva UI de Conexión ---
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveConnectionBtn = document.getElementById('save-connection-btn');
-
-        // --- Botones de Acción ---
         const loadButton = document.getElementById('load-button'); 
         const saveButton = document.getElementById('save-button');
         const loadSpinner = document.getElementById('load-spinner');
         const saveSpinner = document.getElementById('save-spinner');
         const loadText = document.getElementById('load-text');
         const saveText = document.getElementById('save-text');
-
-        // --- Pestañas y Tablas ---
         const tabButtons = document.querySelectorAll('.pill-tab');
         const tabContents = document.querySelectorAll('.tab-content');
         const ingredientsTableBody = document.getElementById('ingredients-table-body');
         const recipesTableBody = document.getElementById('recipes-table-body');
         const addIngredientRowBtn = document.getElementById('add-ingredient-row');
         const addRecipeRowBtn = document.getElementById('add-recipe-row');
-        
-        // --- Calculadora ---
         const recipeSelect = document.getElementById('recipe-select');
         const calculateButton = document.getElementById('calculate-button');
         const costResultContainer = document.getElementById('cost-result-container');
         const totalCostEl = document.getElementById('total-cost');
         const costBreakdownEl = document.getElementById('cost-breakdown');
-        
-        // --- Modal ---
         const alertModal = document.getElementById('alert-modal');
         const alertModalTitle = document.getElementById('alert-modal-title');
         const alertModalMessage = document.getElementById('alert-modal-message');
         const alertModalCloseBtn = document.getElementById('alert-modal-close-btn');
         const alertModalCloseIcon = document.getElementById('alert-modal-close-icon');
-        
-        // --- PDF ---
         const totalInventoryCostEl = document.getElementById('total-inventory-cost');
-        const downloadPdfBtn = document.getElementById('download-pdf-btn');
+        
+        // --- Botón de descarga actualizado ---
+        const copyListBtn = document.getElementById('copy-list-btn');
 
         // =====================================================================
         // PARSER Y FORMATTER DE NÚMEROS
@@ -312,7 +300,7 @@
         }
 
         // =====================================================================
-        // FUNCIONES DE COMUNICACIÓN (¡¡REESCRITAS para v9!!)
+        // FUNCIONES DE COMUNICACIÓN
         // =====================================================================
 
         function showAlert(title, message) {
@@ -337,7 +325,6 @@
             }
         }
 
-        // --- Nuevas funciones de Conexión ---
         function getScriptUrl() {
             return localStorage.getItem(SCRIPT_URL_KEY);
         }
@@ -352,7 +339,6 @@
             }
         }
 
-        // ¡¡FUNCIÓN DE CARGA v9!! (Desde Google Sheets)
         async function loadDataFromSheet() {
             const url = getScriptUrl();
             if (!url) {
@@ -396,11 +382,7 @@
 
             } catch (error) {
                 console.error("Error en loadDataFromSheet:", error);
-
                 let customErrorMessage = `Ocurrió un error: ${error.message}`;
-                
-                // --- ¡NUEVA MEJORA DE ERROR! ---
-                // Comprobar si el error es el específico de "openById"
                 if (error.message && error.message.includes("openById")) {
                     customErrorMessage = `<b>¡Error de Conexión!</b><br>El script no puede abrir tu Google Sheet.<br><br>
                     <b>SOLUCIÓN:</b><br>
@@ -409,8 +391,6 @@
                     3. Pega el ID de tu Google Sheet <b>dentro de las comillas</b>.<br>
                     4. Guarda y vuelve a "Implementar" > "Gestionar implementaciones" > "Editar" > "Implementar".`;
                 }
-                // --- FIN DE LA MEJORA ---
-
                 showAlert("❌ Error al Cargar", 
                     `${customErrorMessage}<br><br><b>Revisa también:</b><br>1. ¿La URL del script es correcta?<br>2. ¿Implementaste la app web y diste permisos a "Cualquier usuario"?`
                 );
@@ -419,7 +399,6 @@
             }
         }
 
-        // ¡¡FUNCIÓN DE GUARDADO v9!! (En Google Sheets)
         async function saveDataToSheet() {
             const url = getScriptUrl();
             if (!url) {
@@ -430,25 +409,21 @@
             setLoadingState(saveButton, saveText, saveSpinner, true, 'Guardar en Sheet 💾');
             
             try {
-                // 1. Asegurarse de que los datos locales están actualizados desde la UI
                 updateLocalDataFromUI();
-                
-                // 2. Crear el payload
                 const payload = {
                     ingredients: localIngredients,
                     recipes: localRecipes
                 };
                 
-                // 3. Enviar usando fetch POST
                 const response = await fetch(url, {
                     method: 'POST',
                     mode: 'cors',
                     cache: 'no-cache',
                     headers: {
-                        'Content-Type': 'text/plain;charset=utf-8', // Apps Script prefiere text/plain para e.postData.contents
+                        'Content-Type': 'text/plain;charset=utf-8',
                     },
                     body: JSON.stringify(payload),
-                    redirect: 'follow' // Importante para Google Scripts
+                    redirect: 'follow'
                 });
 
                 if (!response.ok) {
@@ -466,11 +441,7 @@
 
             } catch (error) {
                 console.error("Error en saveDataToSheet:", error);
-                
                 let customErrorMessage = `Ocurrió un error: ${error.message}`;
-                
-                // --- ¡NUEVA MEJORA DE ERROR! ---
-                // Comprobar si el error es el específico de "openById" (que también ocurriría aquí)
                 if (error.message && error.message.includes("openById")) {
                     customErrorMessage = `<b>¡Error de Conexión!</b><br>El script no puede abrir tu Google Sheet.<br><br>
                     <b>SOLUCIÓN:</b><br>
@@ -478,8 +449,6 @@
                     2. Pega el ID de tu Google Sheet en la variable <code>SHEET_ID</code>.<br>
                     3. Guarda y vuelve a "Implementar" > "Gestionar implementaciones" > "Editar" > "Implementar".`;
                 }
-                // --- FIN DE LA MEJORA ---
-
                 showAlert("❌ Error al Guardar", 
                     `${customErrorMessage}<br><br><b>Revisa también:</b><br>1. ¿La URL del script es correcta?<br>2. ¿El script ` + "`codigo_costos.gs`" + ` está implementado y actualizado?`
                 );
@@ -489,7 +458,7 @@
         }
 
         // =====================================================================
-        // FUNCIONES DE RENDERIZADO Y UI (Corregido para inputs)
+        // FUNCIONES DE RENDERIZADO Y UI
         // =====================================================================
         function renderAllTabs() {
             renderIngredientsTable();
@@ -541,8 +510,6 @@
                         if (input) input.value = '';
                     }
                 }
-                // markUnsavedChanges(); // No es necesario aquí, el 'onchange' en el HTML ya lo llama
-                // handleDataChange(); // Se llama desde el onchange en el HTML
             } catch (e) {
                 console.error("Error updating unit label:", e);
             }
@@ -576,10 +543,10 @@
 
                     if (measureInfo.showRendimiento === 'ml') {
                         if (rendimiento_ml > 0) { costPerUnit = costo / rendimiento_ml; unitLabel = 'ml'; }
-                        else if (contenido > 0 && measureInfo.baseUnit === 'gr') { costPerUnit = costo / contenido; unitLabel = 'gr'; } // Fallback si no hay rendimiento
+                        else if (contenido > 0 && measureInfo.baseUnit === 'gr') { costPerUnit = costo / contenido; unitLabel = 'gr'; }
                     } else if (measureInfo.showRendimiento === 'un') {
                         if (total_unidades > 0) { costPerUnit = costo / total_unidades; unitLabel = 'un'; }
-                        else if (contenido > 0 && measureInfo.baseUnit === 'gr') { costPerUnit = costo / contenido; unitLabel = 'gr'; } // Fallback si no hay total_unidades
+                        else if (contenido > 0 && measureInfo.baseUnit === 'gr') { costPerUnit = costo / contenido; unitLabel = 'gr'; }
                     } else if (measureInfo.showRendimiento === 'none' && contenido > 0) {
                         costPerUnit = costo / contenido;
                         unitLabel = measureInfo.baseUnit;
@@ -587,9 +554,6 @@
                 }
 
                 const row = document.createElement('tr');
-                // --- CORRECCIÓN DE EVENTOS ---
-                // oninput: Llama a markUnsavedChanges() y updateLocalDataFromUI() (rápido, sin redibujar)
-                // onchange: Llama a handleDataChange() (lento, redibuja la tabla para actualizar costos)
                 row.innerHTML = `
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Nombre" data-index="${index}" value="${ingredient.Nombre || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="number" data-key="Costo_Compra" data-index="${index}" value="${costo || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
@@ -634,7 +598,6 @@
                 const unidad = recipe.Unidad || 'ml';
                 const cantidad = recipe.Cantidad || 0;
                 const row = document.createElement('tr');
-                // --- CORRECCIÓN DE EVENTOS ---
                 row.innerHTML = `
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Receta" data-index="${index}" value="${recipe.Receta || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Ingrediente" data-index="${index}" value="${recipe.Ingrediente || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
@@ -669,13 +632,12 @@
         // LÓGICA DE DATOS LOCALES
         // =====================================================================
         
-        // --- FUNCIÓN RÁPIDA (SOLO ACTUALIZA EL ARRAY) ---
         function updateLocalDataFromUI() {
             const ingredientRows = ingredientsTableBody.querySelectorAll('tr');
             const newIngredients = [];
             ingredientRows.forEach(row => {
                 const inputs = row.querySelectorAll('input, select');
-                if (inputs.length > 0) { // Asegúrate de que la fila tenga inputs
+                if (inputs.length > 0) {
                     newIngredients.push({
                         "Nombre": inputs[0].value,
                         "Costo_Compra": parseChileanNumber(inputs[1].value),
@@ -692,7 +654,7 @@
             const newRecipes = [];
             recipeRows.forEach(row => {
                 const inputs = row.querySelectorAll('input, select');
-                if (inputs.length > 0) { // Asegúrate de que la fila tenga inputs
+                if (inputs.length > 0) {
                     newRecipes.push({
                         "Receta": inputs[0].value,
                         "Ingrediente": inputs[1].value,
@@ -704,38 +666,37 @@
             localRecipes = newRecipes;
         }
 
-        // --- FUNCIÓN LENTA (ACTUALIZA Y REDIBUJA TODO) ---
         function handleDataChange() {
-            updateLocalDataFromUI(); // Primero, actualiza el array con los valores actuales de la UI
-            renderIngredientsTable(); // Luego, redibuja la tabla de ingredientes (para actualizar costos por unidad)
-            renderRecipesTable();     // Redibuja la tabla de recetas
-            renderCalculator();       // Y la calculadora (por si cambiaron nombres de recetas/ingredientes)
+            updateLocalDataFromUI();
+            renderIngredientsTable();
+            renderRecipesTable();
+            renderCalculator();
         }
 
         function addIngredientRow() {
             localIngredients.push({ Nombre: "", Costo_Compra: 0, Tipo_Medida: "Líquido (ml)", Contenido_Total: 0, Rendimiento_ml: 0, Total_Unidades: 0 });
-            renderIngredientsTable(); // Redibuja para añadir la fila
+            renderIngredientsTable();
             markUnsavedChanges();
         }
         window.deleteIngredientRow = function(button) {
             const index = parseInt(button.dataset.index);
             localIngredients.splice(index, 1);
-            handleDataChange(); // Usar la nueva función para actualizar y re-renderizar
+            handleDataChange();
             markUnsavedChanges();
         }
         function addRecipeRow() {
             localRecipes.push({ Receta: "", Ingrediente: "", Cantidad: 0, Unidad: "ml" });
-            renderRecipesTable(); // Redibuja para añadir la fila
+            renderRecipesTable();
             markUnsavedChanges();
         }
         window.deleteRecipeRow = function(button) {
             const index = parseInt(button.dataset.index);
             localRecipes.splice(index, 1);
-            handleDataChange(); // Usar la nueva función para actualizar y re-renderizar
+            handleDataChange();
             markUnsavedChanges();
         }
         function calculateCost() {
-            updateLocalDataFromUI(); // Asegurarse de que los datos locales están al día
+            updateLocalDataFromUI();
             const selectedRecipeName = recipeSelect.value;
             if (!selectedRecipeName) {
                 showAlert("❌ Error", "Por favor, selecciona una receta.");
@@ -755,11 +716,9 @@
                     const costs = {};
                     if (measureInfo.showRendimiento === 'ml') {
                         if (rendimiento_ml > 0) costs.ml = costo / rendimiento_ml;
-                        // Si no hay rendimiento_ml pero sí contenido, asume que el contenido total es la medida base para ml si aplica
                         else if (contenido > 0 && measureInfo.baseUnit === 'gr') costs.gr = costo / contenido;
                     } else if (measureInfo.showRendimiento === 'un') {
                         if (total_unidades > 0) costs.un = costo / total_unidades;
-                        // Si no hay total_unidades pero sí contenido, asume que el contenido total es la medida base para un si aplica
                         else if (contenido > 0 && measureInfo.baseUnit === 'gr') costs.gr = costo / contenido;
                     } else if (measureInfo.showRendimiento === 'none' && contenido > 0) {
                         costs[measureInfo.baseUnit] = costo / contenido;
@@ -839,72 +798,58 @@
         }
 
         // =====================================================================
-        // FUNCIÓN DESCARGAR PDF (Sin cambios)
+        // FUNCIÓN COPIAR LISTA DE COMPRAS (NUEVA SOLUCIÓN v11)
         // =====================================================================
-        function downloadIngredientsPDF() {
-            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
-                showAlert("❌ Error", "La librería PDF principal (jsPDF) no se cargó correctamente."); return;
-            }
-            const { jsPDF } = window.jspdf;
-            if (typeof jsPDF.prototype.autoTable === 'undefined') {
-                showAlert("❌ Error", "El plugin de tablas PDF (autoTable) no se cargó correctamente."); return;
-            }
+        function copyShoppingList() {
             try {
                 updateLocalDataFromUI(); // Asegura que los datos en memoria estén actualizados
-                const doc = new jsPDF();
-                const tableData = [];
-                let totalCost = 0;
-                localIngredients.forEach(ing => {
-                    const costoCompra = ing.Costo_Compra;
-                    totalCost += costoCompra;
-                    
-                    const medidaInfo = ingredientMeasures.find(m => m.value === ing.Tipo_Medida);
-                    let contenidoStr = `${ing.Contenido_Total || 0}`;
-                    if (medidaInfo) {
-                        contenidoStr += ` ${medidaInfo.baseUnit}`;
-                        if (medidaInfo.showRendimiento === 'ml' && ing.Rendimiento_ml > 0) {
-                            contenidoStr += ` (${ing.Rendimiento_ml}ml rendimiento)`;
-                        } else if (medidaInfo.showRendimiento === 'un' && ing.Total_Unidades > 0) {
-                            contenidoStr += ` (${ing.Total_Unidades}unidades)`;
-                        }
-                    }
+                if (localIngredients.length === 0) {
+                    showAlert("ℹ️ Sin Datos", "No hay ingredientes en tu lista para copiar.");
+                    return;
+                }
 
-                    tableData.push([
-                        ing.Nombre,
-                        formatCLP(costoCompra, 0), 
-                        ing.Tipo_Medida,
-                        contenidoStr,
-                    ]);
+                let listContent = "🛒 LISTA DE COMPRAS (Calculadora de Costos)\n";
+                listContent += "==================================\n\n";
+                
+                localIngredients.forEach(ing => {
+                    listContent += `- ${ing.Nombre || 'Ingrediente sin nombre'}\n`;
                 });
-                doc.setFontSize(18); doc.text("Reporte de Costos de Inventario", 14, 22);
-                doc.setFontSize(11); doc.setTextColor(100);
-                doc.text(`Generado el: ${new Date().toLocaleDateString('es-CL')}`, 14, 29);
-                doc.autoTable({
-                    startY: 35,
-                    head: [['Nombre del Ingrediente', 'Costo Compra', 'Tipo de Medida', 'Contenido']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: { fillColor: [76, 29, 149] }, 
-                });
-                doc.autoTable({
-                    startY: doc.lastAutoTable.finalY + 1,
-                    body: [
-                        [
-                            { content: 'COSTO TOTAL INVENTARIO:', colSpan: 3, styles: { fontStyle: 'bold', halign: 'right' } },
-                            { content: formatCLP(totalCost, 0), styles: { fontStyle: 'bold' } }
-                        ]
-                    ],
-                    theme: 'plain',
-                });
-                doc.save('reporte_inventario_costos.pdf');
+
+                listContent += "\n==================================";
+
+                // Usar el método de textarea para máxima compatibilidad
+                const textArea = document.createElement("textarea");
+                textArea.value = listContent;
+                textArea.style.position = "fixed";  // Evitar que se vea
+                textArea.style.top = "-9999px";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showAlert("✅ ¡Lista Copiada!", "Tu lista de ingredientes se ha copiado al portapapeles. Pégala en WhatsApp o en tu app de Notas.");
+                    } else {
+                        throw new Error('No se pudo copiar');
+                    }
+                } catch (err) {
+                    console.error('Error al copiar:', err);
+                    showAlert("❌ Error", "No se pudo copiar la lista. Es posible que tu navegador no lo soporte.");
+                }
+
+                document.body.removeChild(textArea);
+
             } catch (error) {
-                console.error("Error al generar el PDF:", error);
-                showAlert("❌ Error Fatal", `No se pudo generar el PDF. Error: ${error.message}`);
+                console.error("Error al generar la lista:", error);
+                showAlert("❌ Error Fatal", `No se pudo generar la lista. Error: ${error.message}`);
             }
         }
 
+
         // =====================================================================
-        // INICIALIZACIÓN (Actualizado para v9)
+        // INICIALIZACIÓN (Actualizado para v11)
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
@@ -914,7 +859,6 @@
                 showAlert("⚠️ Error de Iconos", "No se pudieron cargar los iconos (lucide).");
             }
             
-            // --- Cargar URL guardada al inicio ---
             let savedUrl = getScriptUrl();
             if (savedUrl) {
                 scriptUrlInput.value = savedUrl;
@@ -933,17 +877,16 @@
             calculateButton.addEventListener('click', calculateCost);
             alertModalCloseBtn.addEventListener('click', hideAlert);
             alertModalCloseIcon.addEventListener('click', hideAlert);
-            downloadPdfBtn.addEventListener('click', downloadIngredientsPDF);
+            
+            // --- Listener actualizado para el botón de Copiar Lista ---
+            copyListBtn.addEventListener('click', copyShoppingList);
 
             alertModal.addEventListener('click', (e) => {
                 if (e.target === alertModal) hideAlert();
             });
-
-            // Los listeners para las tablas ahora están en el HTML (oninput/onchange)
             
             switchTab('calculator');
             
-            // Cargar datos al inicio (si hay URL)
             if (savedUrl) {
                 loadDataFromSheet();
             } else {
