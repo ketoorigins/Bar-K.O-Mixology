@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>(v12-Copiar-con-Total) Calculadora de Costos 🍹</title>
+    <title>(v13-Lista-Detallada) Calculadora de Costos 🍹</title>
     
     <!-- TailwindCSS CDN --><script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,9 +15,9 @@
     
     <!-- 
     =========================================================================
-    SOLUCIÓN (v12 - Copiar Lista con Total)
-    - Botón "Copiar Lista" para pegar en WhatsApp o Notas.
-    - Se añade el "Costo Total Inventario" al texto copiado.
+    SOLUCIÓN (v13 - Lista Detallada)
+    - Botón "Copiar Lista" mejorado.
+    - Ahora incluye el Contenido Total y la Unidad (ej: Pisco (750 ml)).
     =========================================================================
     -->
     
@@ -216,7 +216,7 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN (v12 - Copiar Lista con Total)
+        // CONFIGURACIÓN (v13 - Lista Detallada)
         // =====================================================================
         
         const SCRIPT_URL_KEY = "calculadora_costos_script_url";
@@ -244,7 +244,7 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM (Actualizado para v12)
+        // ELEMENTOS DEL DOM (Actualizado para v13)
         // =====================================================================
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveConnectionBtn = document.getElementById('save-connection-btn');
@@ -797,7 +797,7 @@
         }
 
         // =====================================================================
-        // FUNCIÓN COPIAR LISTA DE COMPRAS (¡¡¡ACTUALIZADA con Total!!!)
+        // FUNCIÓN COPIAR LISTA DE COMPRAS (¡¡¡ACTUALIZADA con Detalle!!!)
         // =====================================================================
         function copyShoppingList() {
             try {
@@ -811,16 +811,30 @@
                 listContent += "==================================\n\n";
                 
                 localIngredients.forEach(ing => {
-                    listContent += `- ${ing.Nombre || 'Ingrediente sin nombre'}\n`;
+                    // --- ¡INICIO DE LA MODIFICACIÓN! ---
+                    const nombre = ing.Nombre || 'Ingrediente sin nombre';
+                    const contenido = ing.Contenido_Total || 0;
+                    const medida = ing.Tipo_Medida || '';
+                    
+                    // Buscar la información de la medida (para obtener la unidad base 'ml', 'gr', 'un')
+                    const measureInfo = ingredientMeasures.find(m => m.value === medida);
+                    const baseUnit = (measureInfo) ? measureInfo.baseUnit : '';
+                    
+                    let detail = '';
+                    if (contenido > 0 && baseUnit) {
+                        // Añade el detalle (ej: " (1000 gr)")
+                        detail = ` (${contenido} ${baseUnit})`;
+                    }
+
+                    listContent += `- ${nombre}${detail}\n`;
+                    // --- FIN DE LA MODIFICACIÓN ---
                 });
 
-                // --- ¡NUEVO! ---
                 // Calcular el costo total del inventario
                 const totalCost = localIngredients.reduce((sum, ing) => sum + (ing.Costo_Compra || 0), 0);
                 
                 listContent += "\n==================================\n";
                 listContent += `\nCOSTO TOTAL INVENTARIO: ${formatCLP(totalCost, 0)}\n`;
-                // --- FIN DE LO NUEVO ---
 
                 // Usar el método de textarea para máxima compatibilidad
                 const textArea = document.createElement("textarea");
@@ -835,7 +849,7 @@
                 try {
                     const successful = document.execCommand('copy');
                     if (successful) {
-                        showAlert("✅ ¡Lista Copiada!", "Tu lista de ingredientes (con costo total) se ha copiado al portapapeles. Pégala en WhatsApp o en tu app de Notas.");
+                        showAlert("✅ ¡Lista Copiada!", "Tu lista de ingredientes (con detalles y costo total) se ha copiado al portapapeles.");
                     } else {
                         throw new Error('No se pudo copiar');
                     }
@@ -854,7 +868,7 @@
 
 
         // =====================================================================
-        // INICIALIZACIÓN (Actualizado para v12)
+        // INICIALIZACIÓN (Actualizado para v13)
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
