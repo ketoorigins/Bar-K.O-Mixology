@@ -16,8 +16,9 @@
     <!-- 
     =========================================================================
     SOLUCIÓN (v13 - Lista Detallada)
-    - Botón "Copiar Lista" mejorado.
-    - Ahora incluye el Contenido Total y la Unidad (ej: Pisco (750 ml)).
+    - ... (fixes anteriores)
+    - (Fix v18) Creado el gestor de "Rendimiento de Recetas"
+    - (Fix v18) Ocultada la columna de rendimiento de la tabla de ingredientes
     =========================================================================
     -->
     
@@ -48,6 +49,11 @@
             background-color: rgba(136, 78, 255, 0.3); color: #c4b5fd;
         }
         .glass-table tr:hover { background-color: rgba(136, 78, 255, 0.05); }
+
+        /* (Fix v18) Ocultar la columna de rendimiento de la tabla */
+        .col-rendimiento {
+            display: none;
+        }
     </style>
 </head>
 
@@ -55,7 +61,10 @@
 
     <div class="max-w-7xl mx-auto">
 
-        <!-- ===================================================================== --><!-- SECCIÓN DE CONEXIÓN --><!-- ===================================================================== --><section class="glass-card p-6 md:p-8 mb-8">
+        <!-- ===================================================================== -->
+        <!-- SECCIÓN DE CONEXIÓN -->
+        <!-- ===================================================================== -->
+        <section class="glass-card p-6 md:p-8 mb-8">
             <h2 class="text-2xl font-bold text-white mb-4">🔗 Conexión con Google Sheets</h2>
             <div class="space-y-4">
                 <label for="script-url-input" class="block text-sm font-medium text-purple-300">URL de la Aplicación Web (Apps Script)</label>
@@ -67,7 +76,10 @@
             </div>
         </section>
 
-        <!-- ===================================================================== --><!-- Aplicación Principal --><!-- ===================================================================== --><header class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
+        <!-- ===================================================================== -->
+        <!-- Aplicación Principal -->
+        <!-- ===================================================================== -->
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0">
             <div class="flex items-center space-x-4">
                 <img src="https://i.ibb.co/VZ3VZ3c/Copia-de-Logos-animados-1.png" alt="Logo" class="h-16 w-16 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/64x64/1a0033/884eff?text=Logo'">
                 <h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter">
@@ -95,7 +107,8 @@
             </div>
         </header>
 
-        <!-- Pestañas (Tabs) --><nav class="mb-6 flex justify-center bg-purple-950/30 rounded-full p-1.5 max-w-lg mx-auto">
+        <!-- Pestañas (Tabs) -->
+        <nav class="mb-6 flex justify-center bg-purple-950/30 rounded-full p-1.5 max-w-lg mx-auto">
             <button data-tab="calculator" class="pill-tab flex-1 text-center px-6 py-2.5 rounded-full transition-colors text-purple-300 hover:text-white">
                 📊 Calculadora
             </button>
@@ -107,11 +120,14 @@
             </button>
         </nav>
 
-        <!-- Contenido de las Pestañas --><main>
-            <!-- Pestaña: Calculadora --><section id="tab-calculator" class="tab-content glass-card p-6 md:p-8">
+        <!-- Contenido de las Pestañas -->
+        <main>
+            <!-- Pestaña: Calculadora -->
+            <section id="tab-calculator" class="tab-content glass-card p-6 md:p-8">
                 <h2 class="text-2xl font-bold text-white mb-6">🍸 Calcular Costo de Cóctel</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Columna de Selección --><div class="space-y-4">
+                    <!-- Columna de Selección -->
+                    <div class="space-y-4">
                         <label for="recipe-select" class="block text-sm font-medium text-purple-300">Selecciona una Receta</label>
                         <select id="recipe-select" class="glass-select w-full">
                             <option value="">-- Elige un cóctel --</option>
@@ -121,7 +137,8 @@
                             <span>Calcular Costo 🧮</span>
                         </button>
                     </div>
-                    <!-- Columna de Resultados --><div id="cost-result-container" class="hidden glass-card border-none bg-purple-950/50 p-6 rounded-2xl">
+                    <!-- Columna de Resultados -->
+                    <div id="cost-result-container" class="hidden glass-card border-none bg-purple-950/50 p-6 rounded-2xl">
                         <h3 class="text-lg font-semibold text-white mb-4">Costo Total</h3>
                         <p id="total-cost" class="text-4xl font-extrabold text-green-400 mb-6">$ 0</p>
                         <h4 class="text-md font-semibold text-purple-300 mb-3">Desglose de Costos</h4>
@@ -131,7 +148,8 @@
                 </div>
             </section>
 
-            <!-- Pestaña: Ingredientes --><section id="tab-ingredients" class="tab-content hidden glass-card p-6 md:p-8">
+            <!-- Pestaña: Ingredientes -->
+            <section id="tab-ingredients" class="tab-content hidden glass-card p-6 md:p-8">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold text-white">🍾 Gestionar Ingredientes</h2>
                     <button id="add-ingredient-row" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 hover:scale-105">
@@ -140,12 +158,14 @@
                     </button>
                 </div>
                 
-                <!-- RESUMEN Y DESCARGA --><div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 p-4 rounded-xl bg-purple-950/50">
+                <!-- RESUMEN Y DESCARGA -->
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 p-4 rounded-xl bg-purple-950/50">
                     <div class="text-center sm:text-left">
                         <h3 class="text-sm font-medium text-purple-300 uppercase tracking-wider">Costo Total Inventario</h3>
                         <p id="total-inventory-cost" class="text-2xl font-bold text-green-400">$ 0</p>
                     </div>
-                    <!-- BOTÓN "COPIAR LISTA" --><button id="copy-list-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
+                    <!-- BOTÓN "COPIAR LISTA" -->
+                    <button id="copy-list-btn" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105">
                         <i data-lucide="clipboard-list" class="w-5 h-5"></i>
                         <span>Copiar Lista 🛒</span>
                     </button>
@@ -171,7 +191,8 @@
                 </div>
             </section>
 
-            <!-- Pestaña: Recetas --><section id="tab-recipes" class="tab-content hidden glass-card p-6 md:p-8">
+            <!-- Pestaña: Recetas -->
+            <section id="tab-recipes" class="tab-content hidden glass-card p-6 md:p-8">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold text-white">🧾 Gestionar Recetas</h2>
                     <button id="add-recipe-row" class="!py-2 !px-4 px-6 rounded-full font-semibold shadow-lg text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 hover:scale-105">
@@ -179,7 +200,17 @@
                         <span>Añadir ➕</span>
                     </button>
                 </div>
+
+                <!-- (Fix v18) NUEVO RECUADRO DE RENDIMIENTOS -->
+                <div id="recipe-yields-manager" class="glass-card border-none bg-purple-950/50 p-6 rounded-2xl mb-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">Rendimientos de Recetas</h3>
+                    <div id="recipe-yields-list" class="space-y-3">
+                        <!-- El contenido se generará por JS -->
+                    </div>
+                </div>
+
                 <div class="overflow-x-auto">
+                    <!-- (Fix v18) Reducido el min-w porque se ocultó una columna -->
                     <table class="w-full min-w-[700px] glass-table">
                         <thead>
                             <tr>
@@ -187,6 +218,8 @@
                                 <th class="p-3 text-left text-sm font-semibold text-purple-300 uppercase tracking-wider">Nombre del Ingrediente</th>
                                 <th class="p-3 text-left text-sm font-semibold text-purple-300 uppercase tracking-wider">Cantidad</th>
                                 <th class="p-3 text-left text-sm font-semibold text-purple-300 uppercase tracking-wider">Unidad</th>
+                                <!-- (Fix v18) Columna oculta con CSS -->
+                                <th class="p-3 text-left text-sm font-semibold text-purple-300 uppercase tracking-wider col-rendimiento">Rendimiento Total (ml)</th>
                                 <th class="p-3 text-left text-sm font-semibold text-purple-300 uppercase tracking-wider">Acción</th>
                             </tr>
                         </thead>
@@ -198,7 +231,8 @@
         </main>
     </div>
 
-    <!-- Modal de Alerta/Error --><div id="alert-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
+    <!-- Modal de Alerta/Error -->
+    <div id="alert-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="alert-modal-title">
         <div class="glass-card max-w-md w-full p-6 md:p-8" role="document">
             <div class="flex justify-between items-center mb-4">
                 <h3 id="alert-modal-title" class="text-2xl font-bold text-white"></h3>
@@ -271,9 +305,10 @@
         const alertModalCloseBtn = document.getElementById('alert-modal-close-btn');
         const alertModalCloseIcon = document.getElementById('alert-modal-close-icon');
         const totalInventoryCostEl = document.getElementById('total-inventory-cost');
-        
-        // --- Botón de Copiar Lista ---
         const copyListBtn = document.getElementById('copy-list-btn');
+
+        // (Fix v18) Nuevos elementos
+        const recipeYieldsList = document.getElementById('recipe-yields-list');
 
         // =====================================================================
         // PARSER Y FORMATTER DE NÚMEROS
@@ -369,7 +404,8 @@
                         Receta: rec.Receta || "",
                         Ingrediente: rec.Ingrediente || "",
                         Cantidad: parseChileanNumber(rec.Cantidad),
-                        Unidad: rec.Unidad || 'ml'
+                        Unidad: rec.Unidad || 'ml',
+                        Rendimiento_Total: parseChileanNumber(rec.Rendimiento_Total)
                     }));
 
                     renderAllTabs();
@@ -408,10 +444,14 @@
             setLoadingState(saveButton, saveText, saveSpinner, true, 'Guardar en Sheet 💾');
             
             try {
-                updateLocalDataFromUI();
+                // (Fix v18) Ya no es necesario llamar a updateLocalDataFromUI() aquí
+                // porque los inputs del gestor de rendimiento actualizan 
+                // localRecipes directamente con onchange.
+                // updateLocalDataFromUI(); // <-- ELIMINADA
+
                 const payload = {
                     ingredients: localIngredients,
-                    recipes: localRecipes
+                    recipes: localRecipes 
                 };
                 
                 const response = await fetch(url, {
@@ -461,6 +501,8 @@
         // =====================================================================
         function renderAllTabs() {
             renderIngredientsTable();
+            // (Fix v18) El orden es importante. Renderizar el gestor ANTES que la tabla.
+            renderRecipeYieldsManager();
             renderRecipesTable();
             renderCalculator();
             switchTab(activeTab);
@@ -517,6 +559,8 @@
             ingredientsTableBody.innerHTML = '';
             let totalInventoryCost = 0;
 
+            const recipeNames = new Set(localRecipes.map(r => r.Receta.toLowerCase()));
+
             if (!localIngredients || localIngredients.length === 0) {
                 ingredientsTableBody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-purple-400 px-3 py-2 border-t border-purple-800/30">No hay ingredientes.</td></tr>`;
                 totalInventoryCostEl.textContent = formatCLP(0);
@@ -524,6 +568,10 @@
             }
             
             localIngredients.forEach((ingredient, index) => {
+                if (ingredient.Nombre && recipeNames.has(ingredient.Nombre.toLowerCase())) {
+                    return; 
+                }
+
                 const costo = ingredient.Costo_Compra || 0;
                 const contenido = ingredient.Contenido_Total || 0;
                 const rendimiento_ml = ingredient.Rendimiento_ml || 0;
@@ -587,23 +635,93 @@
             totalInventoryCostEl.textContent = formatCLP(totalInventoryCost, 0);
             lucide.createIcons();
         }
+
+        // (Fix v18) NUEVA FUNCIÓN para el gestor de rendimientos
+        function renderRecipeYieldsManager() {
+            recipeYieldsList.innerHTML = '';
+            if (!localRecipes || localRecipes.length === 0) {
+                recipeYieldsList.innerHTML = '<p class="text-purple-400 text-sm">Añade ingredientes a una receta en la tabla de abajo para que aparezca aquí.</p>';
+                return;
+            }
+
+            const uniqueRecipeNames = [...new Set(localRecipes.map(r => r.Receta).filter(Boolean))];
+            uniqueRecipeNames.sort();
+
+            if (uniqueRecipeNames.length === 0) {
+                 recipeYieldsList.innerHTML = '<p class="text-purple-400 text-sm">Aún no hay recetas con nombre.</p>';
+                 return;
+            }
+
+            let html = '';
+            uniqueRecipeNames.forEach(recipeName => {
+                const firstRow = localRecipes.find(r => r.Receta === recipeName);
+                const currentYield = firstRow.Rendimiento_Total || 0;
+                
+                html += `
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="yield-${recipeName}" class="text-purple-300 truncate">${recipeName}</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="yield-${recipeName}"
+                                   value="${currentYield || ''}" 
+                                   onchange="updateRecipeYield(this, '${recipeName}')"
+                                   class="glass-input w-28" 
+                                   placeholder="Ej: 2000">
+                            <span class="text-sm text-purple-400">ml</span>
+                        </div>
+                    </div>
+                `;
+            });
+            recipeYieldsList.innerHTML = html;
+        }
+        
+        // (Fix v18) NUEVA FUNCIÓN para actualizar el rendimiento desde el gestor
+        window.updateRecipeYield = function(inputElement, recipeName) {
+            const newYield = parseChileanNumber(inputElement.value);
+
+            let firstRowFound = false;
+            localRecipes.forEach(recipe => {
+                if (recipe.Receta === recipeName) {
+                    if (!firstRowFound) {
+                        recipe.Rendimiento_Total = newYield;
+                        firstRowFound = true;
+                    } else {
+                        // Opcional: limpiar el rendimiento de otras filas
+                        recipe.Rendimiento_Total = 0; 
+                    }
+                }
+            });
+
+            markUnsavedChanges();
+            // (Fix v18) Re-renderizar la tabla oculta para que los datos 
+            // se guarden correctamente
+            renderRecipesTable(); 
+        }
+
+
         function renderRecipesTable() {
             recipesTableBody.innerHTML = '';
             if (!localRecipes || localRecipes.length === 0) {
+                // (Fix v18) Aumentado el colspan
                 recipesTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-purple-400 px-3 py-2 border-t border-purple-800/30">No hay recetas.</td></tr>`;
                 return;
             }
             localRecipes.forEach((recipe, index) => {
                 const unidad = recipe.Unidad || 'ml';
                 const cantidad = recipe.Cantidad || 0;
+                const rendimiento = recipe.Rendimiento_Total || 0;
+                
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Receta" data-index="${index}" value="${recipe.Receta || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
+                    <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Receta" data-index="${index}" value="${recipe.Receta || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange(true)"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="text" data-key="Ingrediente" data-index="${index}" value="${recipe.Ingrediente || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><input type="number" data-key="Cantidad" data-index="${index}" value="${cantidad || ''}" class="glass-input w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()"></td>
                     <td class="px-3 py-2 border-t border-purple-800/30"><select data-key="Unidad" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges(); updateLocalDataFromUI();" onchange="handleDataChange()">
                             ${renderSelect(recipeUnits, unidad)}
                         </select>
+                    </td>
+                    <!-- (Fix v18) Columna oculta con CSS. El input sigue aquí para guardar datos. -->
+                    <td class="px-3 py-2 border-t border-purple-800/30 col-rendimiento">
+                        <input type="number" data-key="Rendimiento_Total" data-index="${index}" value="${rendimiento || ''}" class="glass-input w-full">
                     </td>
                     <td class="px-3 py-2 border-t border-purple-800/30">
                         <button class="bg-red-600/80 hover:bg-red-500 text-white p-2 rounded-lg transition-colors" data-index="${index}" onclick="deleteRecipeRow(this)"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
@@ -617,7 +735,7 @@
             recipeSelect.innerHTML = '<option value="">-- Elige un cóctel --</option>';
             costResultContainer.classList.add('hidden');
             if (!localRecipes) return;
-            const recipeNames = [...new Set(localRecipes.map(r => r.Receta))];
+            const recipeNames = [...new Set(localRecipes.map(r => r.Receta).filter(Boolean))];
             recipeNames.sort().forEach(name => {
                 if (name) {
                     const option = document.createElement('option');
@@ -635,7 +753,7 @@
             const ingredientRows = ingredientsTableBody.querySelectorAll('tr');
             const newIngredients = [];
             ingredientRows.forEach(row => {
-                const inputs = row.querySelectorAll('input, select');
+                const inputs = row.querySelectorAll('[data-key]');
                 if (inputs.length > 0) {
                     newIngredients.push({
                         "Nombre": inputs[0].value,
@@ -652,23 +770,30 @@
             const recipeRows = recipesTableBody.querySelectorAll('tr');
             const newRecipes = [];
             recipeRows.forEach(row => {
-                const inputs = row.querySelectorAll('input, select');
+                const inputs = row.querySelectorAll('[data-key]');
                 if (inputs.length > 0) {
                     newRecipes.push({
                         "Receta": inputs[0].value,
                         "Ingrediente": inputs[1].value,
                         "Cantidad": parseChileanNumber(inputs[2].value),
-                        "Unidad": inputs[3].value
+                        "Unidad": inputs[3].value,
+                        // (Fix v18) Leer el input oculto
+                        "Rendimiento_Total": parseChileanNumber(inputs[4].value)
                     });
                 }
             });
             localRecipes = newRecipes;
         }
 
-        function handleDataChange() {
-            updateLocalDataFromUI();
+        // (Fix v18) 'handleDataChange' ahora puede recibir un parámetro
+        // para saber si debe actualizar también el gestor de rendimientos
+        // (por ej, si se cambió el nombre de una receta)
+        function handleDataChange(updateYieldManager = false) {
             renderIngredientsTable();
             renderRecipesTable();
+            if (updateYieldManager) {
+                renderRecipeYieldsManager();
+            }
             renderCalculator();
         }
 
@@ -679,22 +804,27 @@
         }
         window.deleteIngredientRow = function(button) {
             const index = parseInt(button.dataset.index);
+            updateLocalDataFromUI();
             localIngredients.splice(index, 1);
-            handleDataChange();
+            handleDataChange(); 
             markUnsavedChanges();
         }
         function addRecipeRow() {
-            localRecipes.push({ Receta: "", Ingrediente: "", Cantidad: 0, Unidad: "ml" });
+            localRecipes.push({ Receta: "", Ingrediente: "", Cantidad: 0, Unidad: "ml", Rendimiento_Total: 0 });
             renderRecipesTable();
             markUnsavedChanges();
         }
         window.deleteRecipeRow = function(button) {
             const index = parseInt(button.dataset.index);
+            updateLocalDataFromUI();
             localRecipes.splice(index, 1);
-            handleDataChange();
+            // (Fix v18) Le decimos que actualice el gestor por si borramos la última receta
+            handleDataChange(true); 
             markUnsavedChanges();
         }
         function calculateCost() {
+            // (Fix v18) Asegurarnos de que los datos de la UI (tabla oculta) 
+            // están sincronizados con localRecipes antes de calcular
             updateLocalDataFromUI();
             const selectedRecipeName = recipeSelect.value;
             if (!selectedRecipeName) {
@@ -734,6 +864,12 @@
                 return;
             }
 
+            let rendimientoTotal = 0;
+            const yieldRow = recipeIngredients.find(r => r.Rendimiento_Total > 0);
+            if (yieldRow) {
+                rendimientoTotal = yieldRow.Rendimiento_Total;
+            }
+
             let totalCost = 0;
             let breakdownHTML = '';
             let hasMissingIngredients = false;
@@ -749,9 +885,14 @@
                     const ingredientCost = costPerUnit * amount;
                     totalCost += ingredientCost;
                     breakdownHTML += `
-                        <li class="flex justify-between items-center text-purple-200">
-                            <span>${ingredientName} <span class="text-xs text-purple-400">(${amount}${unitNeeded})</span></span>
-                            <span class="font-medium text-white">${formatCLP(ingredientCost, 3)}</span>
+                        <li class="flex flex-col text-purple-200 mb-2 border-b border-purple-800/30 pb-2">
+                            <div class="flex justify-between items-center w-full">
+                                <span>${ingredientName} <span class="text-xs text-purple-400">(${amount}${unitNeeded})</span></span>
+                                <span class="font-medium text-white">${formatCLP(ingredientCost, 0)}</span> 
+                            </div>
+                            <div class="w-full text-right">
+                                <span class="text-xs font-mono text-purple-400">${formatCLP(costPerUnit, 4)} / ${unitNeeded}</span>
+                            </div>
                         </li>`;
                 } else {
                     hasMissingIngredients = true;
@@ -764,7 +905,7 @@
                         errorMsg = `Cantidad inválida para ${ingredientName}.`;
                     }
                     breakdownHTML += `
-                        <li class="flex justify-between items-center text-red-400">
+                        <li class="flex justify-between items-center text-red-400 mb-2 border-b border-purple-800/30 pb-2">
                             <span>${ingredientName} <span class="text-xs">(${amount}${unitNeeded})</span></span>
                             <span class="font-medium text-xs">${errorMsg}</span>
                         </li>`;
@@ -774,6 +915,21 @@
             if (hasMissingIngredients) {
                 breakdownHTML += `<li class="text-yellow-400 text-xs mt-4">Algunos costos no pudieron ser calculados. Revisa la pestaña 'Ingredientes' y la 'Receta'.</li>`;
             }
+
+            if (rendimientoTotal > 0 && totalCost > 0) {
+                const costoPorMl = totalCost / rendimientoTotal;
+                breakdownHTML += `
+                    <li class="flex flex-col text-green-400 mt-4 pt-2 border-t border-purple-700">
+                        <div class="flex justify-between items-center w-full font-bold">
+                            <span>Costo por ml (Receta)</span>
+                            <span class="font-medium">${formatCLP(costoPorMl, 2)} / ml</span> 
+                        </div>
+                        <div class="w-full text-right">
+                            <span class="text-xs font-mono text-purple-400">(${formatCLP(totalCost, 0)} / ${rendimientoTotal}ml)</span>
+                        </div>
+                    </li>`;
+            }
+
             totalCostEl.textContent = formatCLP(totalCost, 0);
             costBreakdownEl.innerHTML = breakdownHTML;
             costResultContainer.classList.remove('hidden');
@@ -797,49 +953,55 @@
         }
 
         // =====================================================================
-        // FUNCIÓN COPIAR LISTA DE COMPRAS (¡¡¡ACTUALIZADA con Detalle!!!)
+        // FUNCIÓN COPIAR LISTA DE COMPRAS
         // =====================================================================
         function copyShoppingList() {
             try {
-                updateLocalDataFromUI(); // Asegura que los datos en memoria estén actualizados
-                if (localIngredients.length === 0) {
-                    showAlert("ℹ️ Sin Datos", "No hay ingredientes en tu lista para copiar.");
-                    return;
-                }
+                updateLocalDataFromUI(); 
+                
+                const recipeNames = new Set(localRecipes.map(r => r.Receta.toLowerCase()));
+                let validIngredients = 0;
 
                 let listContent = "🛒 LISTA DE COMPRAS (Calculadora de Costos)\n";
                 listContent += "==================================\n\n";
                 
                 localIngredients.forEach(ing => {
-                    // --- ¡INICIO DE LA MODIFICACIÓN! ---
+                    if (ing.Nombre && recipeNames.has(ing.Nombre.toLowerCase())) {
+                        return; 
+                    }
+                    
+                    validIngredients++; 
+
                     const nombre = ing.Nombre || 'Ingrediente sin nombre';
                     const contenido = ing.Contenido_Total || 0;
                     const medida = ing.Tipo_Medida || '';
                     
-                    // Buscar la información de la medida (para obtener la unidad base 'ml', 'gr', 'un')
                     const measureInfo = ingredientMeasures.find(m => m.value === medida);
                     const baseUnit = (measureInfo) ? measureInfo.baseUnit : '';
                     
                     let detail = '';
                     if (contenido > 0 && baseUnit) {
-                        // Añade el detalle (ej: " (1000 gr)")
                         detail = ` (${contenido} ${baseUnit})`;
                     }
 
                     listContent += `- ${nombre}${detail}\n`;
-                    // --- FIN DE LA MODIFICACIÓN ---
                 });
 
-                // Calcular el costo total del inventario
-                const totalCost = localIngredients.reduce((sum, ing) => sum + (ing.Costo_Compra || 0), 0);
+                if (validIngredients === 0) {
+                     showAlert("ℹ️ Sin Datos", "No hay ingredientes válidos en tu lista para copiar (posiblemente solo hay recetas listadas como ingredientes).");
+                     return;
+                }
+
+                const totalCost = localIngredients
+                    .filter(ing => !(ing.Nombre && recipeNames.has(ing.Nombre.toLowerCase())))
+                    .reduce((sum, ing) => sum + (ing.Costo_Compra || 0), 0);
                 
                 listContent += "\n==================================\n";
                 listContent += `\nCOSTO TOTAL INVENTARIO: ${formatCLP(totalCost, 0)}\n`;
 
-                // Usar el método de textarea para máxima compatibilidad
                 const textArea = document.createElement("textarea");
                 textArea.value = listContent;
-                textArea.style.position = "fixed";  // Evitar que se vea
+                textArea.style.position = "fixed"; 
                 textArea.style.top = "-9999px";
                 textArea.style.left = "-9999px";
                 document.body.appendChild(textArea);
@@ -868,7 +1030,7 @@
 
 
         // =====================================================================
-        // INICIALIZACIÓN (Actualizado para v13)
+        // INICIALIZACIÓN
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
@@ -880,7 +1042,7 @@
             
             let savedUrl = getScriptUrl();
             if (savedUrl) {
-                scriptUrlInput.value = savedUrl;
+                scriptUrlInput.value = savedUrl.trim(); 
             }
             
             // --- Event Listeners ---
@@ -896,8 +1058,6 @@
             calculateButton.addEventListener('click', calculateCost);
             alertModalCloseBtn.addEventListener('click', hideAlert);
             alertModalCloseIcon.addEventListener('click', hideAlert);
-            
-            // --- Listener actualizado para el botón de Copiar Lista ---
             copyListBtn.addEventListener('click', copyShoppingList);
 
             alertModal.addEventListener('click', (e) => {
@@ -911,6 +1071,23 @@
             } else {
                 showAlert("ℹ️ ¡Bienvenido!", "Pega la URL de tu Google Apps Script en el campo de conexión para empezar.");
             }
+
+            window.deleteIngredientRow = function(button) {
+                const index = parseInt(button.dataset.index);
+                updateLocalDataFromUI(); 
+                localIngredients.splice(index, 1); 
+                handleDataChange(); 
+                markUnsavedChanges();
+            }
+            
+            window.deleteRecipeRow = function(button) {
+                const index = parseInt(button.dataset.index);
+                updateLocalDataFromUI(); 
+                localRecipes.splice(index, 1); 
+                handleDataChange(true); // (Fix v18) Actualizar el gestor de rendimiento
+                markUnsavedChanges();
+            }
+
         });
 
     </script>
