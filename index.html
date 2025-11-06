@@ -15,10 +15,13 @@
     
     <!-- 
     =========================================================================
-    SOLUCIÓN (v25 - Corrección de 'Failed to fetch')
-    - (Fix v25) Añadidas opciones 'mode: cors', 'cache: no-cache'
-    -           a las funciones loadDataFromSheet y saveDataToSheet
-    -           para prevenir el error de red "Failed to fetch".
+    SOLUCIÓN (v26 - Recetas como Ingredientes)
+    - (Feature v26) La lista desplegable de ingredientes en "Recetas"
+    -               ahora muestra tanto ingredientes crudos como otras recetas.
+    - (Feature v26) La "Calculadora" ahora puede calcular costos recursivamente,
+    -               usando el costo/ml de una receta base como un ingrediente.
+    - (Fix v26) Añadida protección contra referencias circulares 
+    -           (ej. Receta A usa Receta B, Receta B usa Receta A).
     =========================================================================
     -->
     
@@ -246,7 +249,7 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN (v25)
+        // CONFIGURACIÓN (v26)
         // =====================================================================
         
         const SCRIPT_URL_KEY = "calculadora_costos_script_url";
@@ -258,8 +261,11 @@
         let localRecipes = [];
         let activeTab = 'calculator';
         let hasUnsavedChanges = false;
-        // (Fix v24) Variable para guardar el último cálculo
         let lastCalculatedCostData = null;
+        
+        // (Fix v26) Mapas de costos cacheados para evitar recálculos
+        let rawIngredientCostMap = new Map();
+        let recipeCostPerUnitMap = new Map();
         
         const ingredientMeasures = [
             { value: 'Líquido (ml)', label: 'Líquido (Botella, Tetra, Lata en ml)', unit: 'ml', baseUnit: 'ml', showRendimiento: 'none' },
@@ -269,6 +275,8 @@
             { value: 'Peso a Unidad (gr->un)', label: 'Peso a Unidad (Fruta por peso ➡️ un)', unit: 'un', baseUnit: 'gr', showRendimiento: 'un' }
         ];
         
+        // (Fix v26) Unidades de receta ahora incluye 'ml' (para bases)
+        // aunque todas las bases se calculan a ml, esto da flexibilidad.
         const recipeUnits = [
             { value: 'ml', label: 'ml' },
             { value: 'gr', label: 'gr' },
@@ -276,7 +284,7 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM (Actualizado para v24)
+        // ELEMENTOS DEL DOM (v26)
         // =====================================================================
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveConnectionBtn = document.getElementById('save-connection-btn');
@@ -305,8 +313,6 @@
         const copyListBtn = document.getElementById('copy-list-btn');
         const newRecipeNameInput = document.getElementById('new-recipe-name-input');
         const addNewRecipeBtn = document.getElementById('add-new-recipe-btn');
-
-        // (Fix v24) Nuevo elemento
         const copyCostBtn = document.getElementById('copy-cost-btn');
 
 
@@ -672,17 +678,25 @@
             }
         }
 
+        // (Fix v26) FUNCIÓN ACTUALIZADA
         function renderRecipeCards() {
             const container = document.getElementById('recipe-cards-container');
             container.innerHTML = ''; 
             
-            const ingredientOptions = localIngredients
-                .map(ing => ({ value: ing.Nombre, label: ing.Nombre }))
-                .filter(ing => ing.value);
-            ingredientOptions.sort((a, b) => a.label.localeCompare(b.label));
+            // (Fix v26) Crear lista combinada de ingredientes Y recetas
+            const allIngredientNames = localIngredients
+                .map(ing => ing.Nombre)
+                .filter(Boolean);
+            const allRecipeNames = [...new Set(localRecipes.map(r => r.Receta).filter(Boolean))];
+            
+            // Combinar, eliminar duplicados y ordenar
+            const allOptions = [...new Set([...allIngredientNames, ...allRecipeNames])]
+                .sort()
+                .map(name => ({ value: name, label: name }));
+
             const optionsWithDefault = [
-                { value: '', label: '-- Elige un ingrediente --' },
-                ...ingredientOptions
+                { value: '', label: '-- Elige un ítem --' },
+                ...allOptions
             ];
 
             const recipesByName = {};
@@ -743,6 +757,7 @@
                     cardHTML += `
                         <tr>
                             <td class="px-3 py-2 border-t border-purple-800/30">
+                                <!-- (Fix v26) El select ahora usa la lista combinada -->
                                 <select data-key="Ingrediente" data-index="${index}" class="glass-select w-full" oninput="markUnsavedChanges();" onchange="handleDataChange(false, false)">
                                     ${renderSelect(optionsWithDefault, selectedIngredient)}
                                 </select>
@@ -928,19 +943,12 @@
             }
         }
 
+        // =====================================================================
+        // (Fix v26) LÓGICA DE CÁLCULO RECURSIVO
+        // =====================================================================
 
-        function calculateCost() {
-            updateLocalDataFromUI();
-            // (Fix v24) Resetear el objeto de copiar
-            lastCalculatedCostData = null; 
-
-            const selectedRecipeName = recipeSelect.value;
-            if (!selectedRecipeName) {
-                showAlert("❌ Error", "Por favor, selecciona una receta.");
-                return;
-            }
-
-            const ingredientCostMap = new Map();
+        function buildRawIngredientCostMap() {
+            rawIngredientCostMap.clear();
             localIngredients.forEach(ing => {
                 const costo = ing.Costo_Compra;
                 const contenido = ing.Contenido_Total;
@@ -961,83 +969,230 @@
                         costs[measureInfo.baseUnit] = costo / contenido;
                     }
                     if (Object.keys(costs).length > 0) {
-                       ingredientCostMap.set(ing.Nombre.toLowerCase(), costs);
+                       rawIngredientCostMap.set(ing.Nombre.toLowerCase(), costs);
                     }
                 }
             });
+        }
 
-            const recipeIngredients = localRecipes.filter(r => r.Receta === selectedRecipeName);
-            if (recipeIngredients.length === 0) {
-                showAlert("❌ Error", "No se encontraron ingredientes para esta receta.");
-                return;
+        // Esta función calcula el costo por ml de una RECETA (Base)
+        function getRecipeCostPerUnit(recipeName, visited = new Set()) {
+            // 1. Evitar referencia circular
+            if (visited.has(recipeName.toLowerCase())) {
+                throw new Error(`¡Referencia circular detectada! La receta "${recipeName}" se está llamando a sí misma.`);
+            }
+            visited.add(recipeName.toLowerCase());
+
+            // 2. Usar caché si ya se calculó
+            if (recipeCostPerUnitMap.has(recipeName.toLowerCase())) {
+                return recipeCostPerUnitMap.get(recipeName.toLowerCase());
             }
 
+            // 3. Encontrar todos los ingredientes de esta receta
+            const recipeIngredients = localRecipes.filter(r => r.Receta.toLowerCase() === recipeName.toLowerCase());
+            if (recipeIngredients.length === 0) {
+                throw new Error(`La receta "${recipeName}" no tiene ingredientes.`);
+            }
+
+            // 4. Encontrar el rendimiento
             let rendimientoTotal = 0;
             const yieldRow = recipeIngredients.find(r => r.Rendimiento_Total > 0);
             if (yieldRow) {
                 rendimientoTotal = yieldRow.Rendimiento_Total;
             }
+            if (rendimientoTotal <= 0) {
+                throw new Error(`La receta "${recipeName}" no tiene un "Rendimiento Total" definido. Añádelo en la pestaña 'Recetas'.`);
+            }
 
+            // 5. Calcular el costo total de esta receta
+            let totalRecipeCost = 0;
+            for (const item of recipeIngredients) {
+                const itemName = item.Ingrediente || "";
+                const amount = item.Cantidad; 
+                const unitNeeded = item.Unidad || 'ml';
+                
+                if (!itemName || amount <= 0) continue;
+
+                let costPerUnit = 0;
+                let unitFound = '';
+
+                // ¿Es un ingrediente crudo?
+                const rawCost = rawIngredientCostMap.get(itemName.toLowerCase());
+                if (rawCost && rawCost[unitNeeded]) {
+                    costPerUnit = rawCost[unitNeeded];
+                    unitFound = unitNeeded;
+                } else {
+                    // No es crudo, ¿es otra receta?
+                    // (Fix v26) Solo buscamos si el nombre no es el mismo que la receta padre
+                    if (itemName.toLowerCase() !== recipeName.toLowerCase()) {
+                        try {
+                            const subRecipeCostInfo = getRecipeCostPerUnit(itemName, new Set(visited));
+                            
+                            // (Fix v26) Por ahora, forzamos que las bases solo se puedan usar en 'ml'
+                            if (unitNeeded === 'ml' && subRecipeCostInfo.unit === 'ml') {
+                                costPerUnit = subRecipeCostInfo.cost;
+                                unitFound = 'ml';
+                            } else if (unitNeeded === 'gr' && subRecipeCostInfo.unit === 'gr') {
+                                // (Futuro) Lógica para costo/gr de una base
+                                throw new Error(`La unidad 'gr' para bases aún no está soportada.`);
+                            } else if (unitNeeded === 'un' && subRecipeCostInfo.unit === 'un') {
+                                // (Futuro) Lógica para costo/un de una base
+                                throw new Error(`La unidad 'un' para bases aún no está soportada.`);
+                            } else {
+                                throw new Error(`Incompatibilidad de unidad para "${itemName}". Se pide '${unitNeeded}' pero la base es '${subRecipeCostInfo.unit}'.`);
+                            }
+
+                        } catch (e) {
+                            // Si falla la búsqueda recursiva, lanzar error
+                            throw new Error(`Error al calcular costo de sub-receta "${itemName}": ${e.message}`);
+                        }
+                    }
+                }
+
+                if (unitFound) {
+                    totalRecipeCost += costPerUnit * amount;
+                } else {
+                    if (!rawCost) {
+                        // Ni ingrediente crudo, ni sub-receta válida
+                        throw new Error(`Ítem "${itemName}" no se encuentra en Ingredientes ni es una Receta válida.`);
+                    } else {
+                        throw new Error(`Unidad '${unitNeeded}' no disponible para "${itemName}".`);
+                    }
+                }
+            } // Fin del loop de ingredientes
+
+            // 6. Calcular costo/ml y guardar en caché
+            // (Fix v26) Por ahora, todas las bases devuelven su costo en 'ml'
+            // porque el rendimiento total siempre se pide en 'ml'.
+            const costInfo = {
+                cost: totalRecipeCost / rendimientoTotal,
+                unit: 'ml' 
+            };
+            
+            recipeCostPerUnitMap.set(recipeName.toLowerCase(), costInfo);
+            return costInfo;
+        }
+
+        // (Fix v26) FUNCIÓN DE CÁLCULO PRINCIPAL ACTUALIZADA
+        function calculateCost() {
+            updateLocalDataFromUI();
+            lastCalculatedCostData = null; 
+            
+            // 1. (Re)Construir el mapa de ingredientes crudos
+            buildRawIngredientCostMap();
+            // 2. Limpiar el caché de costos de recetas
+            recipeCostPerUnitMap.clear();
+
+            const selectedRecipeName = recipeSelect.value;
+            if (!selectedRecipeName) {
+                showAlert("❌ Error", "Por favor, selecciona una receta.");
+                return;
+            }
+
+            // 3. Encontrar ingredientes de la receta seleccionada
+            const recipeIngredients = localRecipes.filter(r => r.Receta.toLowerCase() === selectedRecipeName.toLowerCase());
+            if (recipeIngredients.length === 0) {
+                showAlert("❌ Error", "No se encontraron ingredientes para esta receta.");
+                return;
+            }
+
+            // 4. Encontrar el rendimiento de la receta seleccionada
+            let rendimientoTotal = 0;
+            const yieldRow = recipeIngredients.find(r => r.Rendimiento_Total > 0);
+            if (yieldRow) {
+                rendimientoTotal = yieldRow.Rendimiento_Total;
+            }
+            
             let totalCost = 0;
             let breakdownHTML = '';
             let hasMissingIngredients = false;
-            // (Fix v24) Array para guardar el texto a copiar
             let breakdownForCopy = [];
 
-            recipeIngredients.forEach(item => {
-                const ingredientName = item.Ingrediente || "";
-                const amount = item.Cantidad; 
-                const unitNeeded = item.Unidad || 'ml';
-                const ingredientCosts = ingredientCostMap.get(ingredientName.toLowerCase());
+            // 5. Loop principal para calcular costo
+            try {
+                for (const item of recipeIngredients) {
+                    const ingredientName = item.Ingrediente || "";
+                    const amount = item.Cantidad; 
+                    const unitNeeded = item.Unidad || 'ml';
+                    
+                    if (!ingredientName || amount <= 0) continue;
 
-                if (ingredientCosts && ingredientCosts[unitNeeded] && amount > 0) {
-                    const costPerUnit = ingredientCosts[unitNeeded];
-                    const ingredientCost = costPerUnit * amount;
-                    totalCost += ingredientCost;
-                    breakdownHTML += `
-                        <li class="flex flex-col text-purple-200 mb-2 border-b border-purple-800/30 pb-2">
-                            <div class="flex justify-between items-center w-full">
-                                <span>${ingredientName} <span class="text-xs text-purple-400">(${amount}${unitNeeded})</span></span>
-                                <span class="font-medium text-white">${formatCLP(ingredientCost, 0)}</span> 
-                            </div>
-                            <div class="w-full text-right">
-                                <span class="text-xs font-mono text-purple-400">${formatCLP(costPerUnit, 4)} / ${unitNeeded}</span>
-                            </div>
-                        </li>`;
-                    // (Fix v24) Añadir al array de copiar
-                    breakdownForCopy.push(`- ${ingredientName} (${amount}${unitNeeded}): ${formatCLP(ingredientCost, 0)}`);
+                    let costPerUnit = 0;
+                    let unitFound = '';
+                    let errorMsg = '';
 
-                } else {
-                    if (ingredientName || amount > 0) {
-                        hasMissingIngredients = true;
-                        let errorMsg = "Costo no disponible";
-                        if (!ingredientName) {
-                            errorMsg = "Ingrediente no seleccionado.";
-                        } else if (!ingredientCosts) {
-                            errorMsg = `Ingrediente "${ingredientName}" no encontrado. Revisa que el nombre coincida en 'Ingredientes'.`;
-                        } else if (!ingredientCosts[unitNeeded]) {
-                            errorMsg = `Error: Receta pide '${unitNeeded}' pero el costo para esa unidad no está disponible en 'Ingredientes'.`;
-                        } else if (amount <= 0) {
-                            errorMsg = `Cantidad inválida para ${ingredientName}.`;
+                    // Pregunta A: ¿Es un ingrediente crudo?
+                    const rawCost = rawIngredientCostMap.get(ingredientName.toLowerCase());
+                    if (rawCost && rawCost[unitNeeded]) {
+                        costPerUnit = rawCost[unitNeeded];
+                        unitFound = unitNeeded;
+                    } else {
+                        // Pregunta B: No es crudo, ¿es otra receta?
+                        try {
+                            // (Fix v26) Llamada recursiva
+                            const subRecipeCostInfo = getRecipeCostPerUnit(ingredientName, new Set([selectedRecipeName.toLowerCase()]));
+                            
+                            // (Fix v26) Validar que la unidad pedida coincida con la unidad de la base (que por ahora siempre es 'ml')
+                            if (unitNeeded === subRecipeCostInfo.unit) {
+                                costPerUnit = subRecipeCostInfo.cost;
+                                unitFound = subRecipeCostInfo.unit;
+                            } else {
+                                // (Futuro) Aquí iría la conversión (ej: gr a ml)
+                                errorMsg = `Error de unidad: Se pide '${unitNeeded}' pero la base "${ingredientName}" está en '${subRecipeCostInfo.unit}'.`;
+                            }
+
+                        } catch (e) {
+                            // Falló la recursión o no se encontró
+                            if (rawCost) {
+                                errorMsg = `Unidad '${unitNeeded}' no disponible para "${ingredientName}".`;
+                            } else {
+                                errorMsg = `Ítem "${ingredientName}" no encontrado en Ingredientes ni en Recetas, o su cálculo falló: ${e.message}`;
+                            }
                         }
-                        breakdownHTML += `
-                            <li class="flex justify-between items-center text-red-400 mb-2 border-b border-purple-800/30 pb-2">
-                                <span>${ingredientName || 'Ingrediente?'} <span class="text-xs">(${amount}${unitNeeded})</span></span>
-                                <span class="font-medium text-xs">${errorMsg}</span>
-                            </li>`;
                     }
-                }
-            });
 
-            if (hasMissingIngredients) {
-                breakdownHTML += `<li class="text-yellow-400 text-xs mt-4">Algunos costos no pudieron ser calculados. Revisa la pestaña 'Ingredientes' y la 'Receta'.</li>`;
+                    // 6. Añadir al desglose
+                    if (unitFound) {
+                        const ingredientCost = costPerUnit * amount;
+                        totalCost += ingredientCost;
+                        breakdownHTML += `
+                            <li class="flex flex-col text-purple-200 mb-2 border-b border-purple-800/30 pb-2">
+                                <div class="flex justify-between items-center w-full">
+                                    <span>${ingredientName} <span class="text-xs text-purple-400">(${amount}${unitNeeded})</span></span>
+                                    <span class="font-medium text-white">${formatCLP(ingredientCost, 0)}</span> 
+                                </div>
+                                <div class="w-full text-right">
+                                    <span class="text-xs font-mono text-purple-400">${formatCLP(costPerUnit, 4)} / ${unitNeeded}</span>
+                                </div>
+                            </li>`;
+                        breakdownForCopy.push(`- ${ingredientName} (${amount}${unitNeeded}): ${formatCLP(ingredientCost, 0)}`);
+                    } else {
+                        if (ingredientName || amount > 0) {
+                            hasMissingIngredients = true;
+                            breakdownHTML += `
+                                <li class="flex justify-between items-center text-red-400 mb-2 border-b border-purple-800/30 pb-2">
+                                    <span>${ingredientName || 'Ingrediente?'} <span class="text-xs">(${amount}${unitNeeded})</span></span>
+                                    <span class="font-medium text-xs">${errorMsg}</span>
+                                </li>`;
+                        }
+                    }
+                } // Fin del loop
+
+            } catch (e) {
+                // Capturar error fatal (ej. recursión)
+                showAlert("❌ Error Fatal en Cálculo", e.message);
+                return;
             }
 
-            // (Fix v24) Variable para guardar el texto de costo/ml
+            // 7. Mostrar resultados
+            if (hasMissingIngredients) {
+                breakdownHTML += `<li class="text-yellow-400 text-xs mt-4">Algunos costos no pudieron ser calculados.</li>`;
+            }
+
             let costPerMlText = '';
             if (rendimientoTotal > 0 && totalCost > 0) {
                 const costoPorMl = totalCost / rendimientoTotal;
-                costPerMlText = `Costo por ml: ${formatCLP(costoPorMl, 2)} / ml`; // (Fix v24)
+                costPerMlText = `Costo por ml: ${formatCLP(costoPorMl, 2)} / ml`;
                 
                 breakdownHTML += `
                     <li class="flex flex-col text-green-400 mt-4 pt-2 border-t border-purple-700">
@@ -1051,7 +1206,6 @@
                     </li>`;
             }
 
-            // (Fix v24) Guardar todos los datos para la función de copiar
             lastCalculatedCostData = {
                 title: `*COSTO: ${selectedRecipeName}*`,
                 total: `Costo Total: ${formatCLP(totalCost, 0)}`,
@@ -1063,6 +1217,8 @@
             costBreakdownEl.innerHTML = breakdownHTML;
             costResultContainer.classList.remove('hidden');
         }
+
+
         window.markUnsavedChanges = function() {
             if (hasUnsavedChanges) return;
             hasUnsavedChanges = true;
