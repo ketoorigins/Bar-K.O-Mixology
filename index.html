@@ -15,14 +15,10 @@
     
     <!-- 
     =========================================================================
-    SOLUCIÓN (v23 - Rediseño de Tarjetas)
-    - (Fix v23) ¡GRAN CAMBIO! Eliminada la tabla gigante de recetas.
-    - (Fix v23) La pestaña "Recetas" ahora muestra "Tarjetas" individuales
-    -           para cada receta.
-    - (Fix v23) Cada tarjeta tiene su PROPIO botón de "Añadir Ingrediente"
-    -           y su PROPIO recuadro de "Rendimiento".
-    - (Fix v23) La lógica de borrado y guardado se adaptó a esta nueva
-    -           estructura de tarjetas.
+    SOLUCIÓN (v25 - Corrección de 'Failed to fetch')
+    - (Fix v25) Añadidas opciones 'mode: cors', 'cache: no-cache'
+    -           a las funciones loadDataFromSheet y saveDataToSheet
+    -           para prevenir el error de red "Failed to fetch".
     =========================================================================
     -->
     
@@ -143,7 +139,16 @@
                     </div>
                     <!-- Columna de Resultados -->
                     <div id="cost-result-container" class="hidden glass-card border-none bg-purple-950/50 p-6 rounded-2xl">
-                        <h3 class="text-lg font-semibold text-white mb-4">Costo Total</h3>
+                        
+                        <!-- (Fix v24) Modificado para incluir el botón de copiar -->
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-white">Costo Total</h3>
+                            <button id="copy-cost-btn" class="!py-1.5 !px-3 rounded-full font-semibold text-white transition-all duration-300 ease-in-out flex items-center justify-center space-x-2 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 hover:scale-105 text-sm">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                                <span>Copiar</span>
+                            </button>
+                        </div>
+                        
                         <p id="total-cost" class="text-4xl font-extrabold text-green-400 mb-6">$ 0</p>
                         <h4 class="text-md font-semibold text-purple-300 mb-3">Desglose de Costos</h4>
                         <ul id="cost-breakdown" class="space-y-2 text-sm">
@@ -241,7 +246,7 @@
 
     <script>
         // =====================================================================
-        // CONFIGURACIÓN (v23)
+        // CONFIGURACIÓN (v25)
         // =====================================================================
         
         const SCRIPT_URL_KEY = "calculadora_costos_script_url";
@@ -253,6 +258,8 @@
         let localRecipes = [];
         let activeTab = 'calculator';
         let hasUnsavedChanges = false;
+        // (Fix v24) Variable para guardar el último cálculo
+        let lastCalculatedCostData = null;
         
         const ingredientMeasures = [
             { value: 'Líquido (ml)', label: 'Líquido (Botella, Tetra, Lata en ml)', unit: 'ml', baseUnit: 'ml', showRendimiento: 'none' },
@@ -269,7 +276,7 @@
         ];
 
         // =====================================================================
-        // ELEMENTOS DEL DOM (Actualizado para v23)
+        // ELEMENTOS DEL DOM (Actualizado para v24)
         // =====================================================================
         const scriptUrlInput = document.getElementById('script-url-input');
         const saveConnectionBtn = document.getElementById('save-connection-btn');
@@ -282,15 +289,7 @@
         const tabButtons = document.querySelectorAll('.pill-tab');
         const tabContents = document.querySelectorAll('.tab-content');
         const ingredientsTableBody = document.getElementById('ingredients-table-body');
-        
-        // (Fix v23) ELIMINADOS
-        // const recipesTableBody = document.getElementById('recipes-table-body');
-        // const addRecipeIngredientRowBtn = document.getElementById('add-recipe-ingredient-row');
-        // const recipeYieldsList = document.getElementById('recipe-yields-list');
-        
-        // (Fix v23) NUEVO CONTENEDOR
         const recipeCardsContainer = document.getElementById('recipe-cards-container');
-
         const addIngredientRowBtn = document.getElementById('add-ingredient-row');
         const recipeSelect = document.getElementById('recipe-select');
         const calculateButton = document.getElementById('calculate-button');
@@ -304,10 +303,11 @@
         const alertModalCloseIcon = document.getElementById('alert-modal-close-icon');
         const totalInventoryCostEl = document.getElementById('total-inventory-cost');
         const copyListBtn = document.getElementById('copy-list-btn');
-
-        // (Fix v21) Nuevos elementos
         const newRecipeNameInput = document.getElementById('new-recipe-name-input');
         const addNewRecipeBtn = document.getElementById('add-new-recipe-btn');
+
+        // (Fix v24) Nuevo elemento
+        const copyCostBtn = document.getElementById('copy-cost-btn');
 
 
         // =====================================================================
@@ -373,6 +373,7 @@
             }
         }
 
+        // (Fix v25) FUNCIÓN ACTUALIZADA
         async function loadDataFromSheet() {
             const url = getScriptUrl();
             if (!url) {
@@ -383,7 +384,15 @@
             setLoadingState(loadButton, loadText, loadSpinner, true, 'Cargar Datos ☁️');
             
             try {
-                const response = await fetch(url);
+                // (Fix v25) Añadidas opciones 'cors', 'cache' y 'redirect' 
+                // para prevenir el error "Failed to fetch"
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    redirect: 'follow'
+                });
+
                 if (!response.ok) {
                     throw new Error(`Error de red: ${response.status} ${response.statusText}`);
                 }
@@ -434,6 +443,7 @@
             }
         }
 
+        // (Fix v25) FUNCIÓN ACTUALIZADA
         async function saveDataToSheet() {
             const url = getScriptUrl();
             if (!url) {
@@ -451,6 +461,7 @@
                     recipes: localRecipes 
                 };
                 
+                // (Fix v25) Añadidas opciones 'cors', 'cache' y 'redirect'
                 const response = await fetch(url, {
                     method: 'POST',
                     mode: 'cors',
@@ -498,7 +509,6 @@
         // =====================================================================
         function renderAllTabs() {
             renderIngredientsTable();
-            // (Fix v23) Llamada a la nueva función
             renderRecipeCards();
             renderCalculator();
             switchTab(activeTab);
@@ -632,8 +642,6 @@
             lucide.createIcons();
         }
 
-        // (Fix v23) ELIMINADA: renderRecipeYieldsManager()
-        
         window.updateRecipeYield = function(inputElement, recipeName) {
             const newYield = parseChileanNumber(inputElement.value);
 
@@ -650,30 +658,24 @@
             });
 
             markUnsavedChanges();
-            // (Fix v23) Actualizar el input oculto en la tarjeta correcta
             updateHiddenYieldInput(recipeName, newYield);
         }
 
-        // (Fix v23) FUNCIÓN ACTUALIZADA
         function updateHiddenYieldInput(recipeName, newYield) {
-            // Se usa un selector de ID más robusto
             const cardId = `recipe-card-${recipeName.replace(/\s+/g, '-')}`;
             const card = document.getElementById(cardId);
             if (!card) return;
 
-            // Buscar el primer input oculto en esta tarjeta
             const hiddenInput = card.querySelector('input[data-key="Rendimiento_Total"]');
             if (hiddenInput) {
                 hiddenInput.value = newYield;
             }
         }
 
-        // (Fix v23) FUNCIÓN TOTALMENTE NUEVA
         function renderRecipeCards() {
             const container = document.getElementById('recipe-cards-container');
-            container.innerHTML = ''; // Limpiar contenedor
+            container.innerHTML = ''; 
             
-            // 1. Opciones de ingredientes (para los <select>)
             const ingredientOptions = localIngredients
                 .map(ing => ({ value: ing.Nombre, label: ing.Nombre }))
                 .filter(ing => ing.value);
@@ -683,25 +685,21 @@
                 ...ingredientOptions
             ];
 
-            // 2. Agrupar recetas por nombre
             const recipesByName = {};
             localRecipes.forEach((recipe, index) => {
                 const recipeName = recipe.Receta;
-                if (!recipeName) return; // Omitir filas sin nombre de receta
+                if (!recipeName) return; 
 
                 if (!recipesByName[recipeName]) {
                     recipesByName[recipeName] = [];
                 }
-                // Guardar la receta y su índice original
                 recipesByName[recipeName].push({ ...recipe, globalIndex: index });
             });
 
-            // 3. Renderizar una tarjeta por cada receta
             Object.keys(recipesByName).sort().forEach(recipeName => {
                 const recipeGroup = recipesByName[recipeName];
                 const firstRow = recipeGroup[0];
                 const currentYield = firstRow.Rendimiento_Total || 0;
-                // ID único para la tarjeta
                 const cardId = `recipe-card-${recipeName.replace(/\s+/g, '-')}`;
 
                 const card = document.createElement('div');
@@ -736,9 +734,8 @@
                             <tbody>
                 `;
 
-                // Renderizar las filas de ingredientes para esta receta
                 recipeGroup.forEach((recipeItem, itemIndex) => {
-                    const index = recipeItem.globalIndex; // Índice global
+                    const index = recipeItem.globalIndex; 
                     const unidad = recipeItem.Unidad || 'ml';
                     const cantidad = recipeItem.Cantidad || 0;
                     const selectedIngredient = recipeItem.Ingrediente || '';
@@ -801,8 +798,6 @@
             lucide.createIcons();
         }
 
-        // (Fix v23) ELIMINADA: renderRecipesTable()
-
         function renderCalculator() {
             recipeSelect.innerHTML = '<option value="">-- Elige un cóctel --</option>';
             costResultContainer.classList.add('hidden');
@@ -821,9 +816,7 @@
         // LÓGICA DE DATOS LOCALES
         // =====================================================================
         
-        // (Fix v23) FUNCIÓN ACTUALIZADA
         function updateLocalDataFromUI() {
-            // Actualizar Ingredientes (sin cambios)
             const ingredientRows = ingredientsTableBody.querySelectorAll('tr');
             const newIngredients = [];
             ingredientRows.forEach(row => {
@@ -841,14 +834,11 @@
             });
             localIngredients = newIngredients;
 
-            // Actualizar Recetas (lee de las nuevas tarjetas)
-            // El selector ahora busca en el nuevo contenedor
             const recipeRows = document.querySelectorAll('#recipe-cards-container tr');
             const newRecipes = [];
             recipeRows.forEach(row => {
                 const inputs = row.querySelectorAll('[data-key]');
                 if (inputs.length > 0) {
-                    // La estructura de data-key es la misma
                     newRecipes.push({
                         "Ingrediente": inputs[0].value, 
                         "Cantidad": parseChileanNumber(inputs[1].value),
@@ -861,13 +851,11 @@
             localRecipes = newRecipes;
         }
 
-        // (Fix v23) FUNCIÓN ACTUALIZADA
         function handleDataChange(updateCalc = false, skipUpdate = false) {
             if (!skipUpdate) {
                 updateLocalDataFromUI();
             }
             
-            // Re-renderizar todo
             renderIngredientsTable();
             renderRecipeCards();
             if (updateCalc) {
@@ -875,7 +863,6 @@
             }
         }
 
-        // (Fix v21) NUEVA FUNCIÓN para crear la receta
         function addNewRecipe() {
             const newName = newRecipeNameInput.value.trim();
             if (!newName) {
@@ -896,48 +883,57 @@
             markUnsavedChanges();
         }
 
-        // (Fix v23) FUNCIÓN ACTUALIZADA
         function addRecipeIngredientRow(recipeName) {
             if (!recipeName) {
                 showAlert("Error", "No se pudo añadir ingrediente, no se encontró el nombre de la receta.");
                 return;
             }
             localRecipes.push({ Receta: recipeName, Ingrediente: "", Cantidad: 0, Unidad: "ml", Rendimiento_Total: 0 });
-            handleDataChange(false, true); // Re-renderizar tarjetas, pero no la calculadora. skipUpdate=true
+            handleDataChange(false, true); 
             markUnsavedChanges();
         }
 
-        // (Fix v21) Botón de añadir ingrediente AL INVENTARIO
         function addIngredientRow() {
             localIngredients.push({ Nombre: "", Costo_Compra: 0, Tipo_Medida: "Líquido (ml)", Contenido_Total: 0, Rendimiento_ml: 0, Total_Unidades: 0 });
             renderIngredientsTable();
             markUnsavedChanges();
         }
 
-        // (Fix v21) Funciones de borrado actualizadas
         window.deleteIngredientRow = function(button) {
             const index = parseInt(button.dataset.index);
             updateLocalDataFromUI(); 
             localIngredients.splice(index, 1); 
-            handleDataChange(false, true); // skipUpdate = true
+            handleDataChange(false, true); 
             markUnsavedChanges();
         }
         
         window.deleteRecipeRow = function(button) {
-            // (Fix v23) El índice ahora es el índice global de localRecipes
             const index = parseInt(button.dataset.index);
             
-            // Buscar el objeto por su índice global y borrarlo
-            // Esto es más simple que antes
-            localRecipes.splice(index, 1); 
+            let itemFound = false;
+            // (Fix v24) El índice que viene del botón es el índice GLOBAL
+            // de localRecipes, no el de la tabla.
+            if (index < localRecipes.length) {
+                localRecipes.splice(index, 1);
+                itemFound = true;
+            }
 
-            handleDataChange(true, true); // updateCalc = true, skipUpdate = true
-            markUnsavedChanges();
+            if (itemFound) {
+                handleDataChange(true, true); 
+                markUnsavedChanges();
+            } else {
+                console.error("No se pudo borrar la fila de receta, índice no encontrado:", index);
+                // (Fix v24) Forzar re-lectura por si acaso
+                handleDataChange(true, false);
+            }
         }
 
 
         function calculateCost() {
             updateLocalDataFromUI();
+            // (Fix v24) Resetear el objeto de copiar
+            lastCalculatedCostData = null; 
+
             const selectedRecipeName = recipeSelect.value;
             if (!selectedRecipeName) {
                 showAlert("❌ Error", "Por favor, selecciona una receta.");
@@ -985,6 +981,8 @@
             let totalCost = 0;
             let breakdownHTML = '';
             let hasMissingIngredients = false;
+            // (Fix v24) Array para guardar el texto a copiar
+            let breakdownForCopy = [];
 
             recipeIngredients.forEach(item => {
                 const ingredientName = item.Ingrediente || "";
@@ -1006,6 +1004,9 @@
                                 <span class="text-xs font-mono text-purple-400">${formatCLP(costPerUnit, 4)} / ${unitNeeded}</span>
                             </div>
                         </li>`;
+                    // (Fix v24) Añadir al array de copiar
+                    breakdownForCopy.push(`- ${ingredientName} (${amount}${unitNeeded}): ${formatCLP(ingredientCost, 0)}`);
+
                 } else {
                     if (ingredientName || amount > 0) {
                         hasMissingIngredients = true;
@@ -1032,8 +1033,12 @@
                 breakdownHTML += `<li class="text-yellow-400 text-xs mt-4">Algunos costos no pudieron ser calculados. Revisa la pestaña 'Ingredientes' y la 'Receta'.</li>`;
             }
 
+            // (Fix v24) Variable para guardar el texto de costo/ml
+            let costPerMlText = '';
             if (rendimientoTotal > 0 && totalCost > 0) {
                 const costoPorMl = totalCost / rendimientoTotal;
+                costPerMlText = `Costo por ml: ${formatCLP(costoPorMl, 2)} / ml`; // (Fix v24)
+                
                 breakdownHTML += `
                     <li class="flex flex-col text-green-400 mt-4 pt-2 border-t border-purple-700">
                         <div class="flex justify-between items-center w-full font-bold">
@@ -1045,6 +1050,14 @@
                         </div>
                     </li>`;
             }
+
+            // (Fix v24) Guardar todos los datos para la función de copiar
+            lastCalculatedCostData = {
+                title: `*COSTO: ${selectedRecipeName}*`,
+                total: `Costo Total: ${formatCLP(totalCost, 0)}`,
+                breakdown: breakdownForCopy,
+                costPerMl: costPerMlText
+            };
 
             totalCostEl.textContent = formatCLP(totalCost, 0);
             costBreakdownEl.innerHTML = breakdownHTML;
@@ -1143,10 +1156,57 @@
                 showAlert("❌ Error Fatal", `No se pudo generar la lista. Error: ${error.message}`);
             }
         }
+        
+        // =====================================================================
+        // (Fix v24) NUEVA FUNCIÓN COPIAR COSTO
+        // =====================================================================
+        function copyRecipeCost() {
+            if (!lastCalculatedCostData) {
+                showAlert("ℹ️ Sin Datos", "Primero debes calcular el costo de una receta.");
+                return;
+            }
+
+            try {
+                let textToCopy = lastCalculatedCostData.title + '\n\n';
+                textToCopy += lastCalculatedCostData.total + '\n';
+                if (lastCalculatedCostData.costPerMl) {
+                    textToCopy += lastCalculatedCostData.costPerMl + '\n';
+                }
+                textToCopy += '----------------------------------\n';
+                textToCopy += lastCalculatedCostData.breakdown.join('\n');
+
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "fixed";  
+                textArea.style.top = "-9999px";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showAlert("✅ ¡Costo Copiado!", "El desglose del costo se ha copiado al portapapeles.");
+                    } else {
+                        throw new Error('No se pudo copiar');
+                    }
+                } catch (err) {
+                    console.error('Error al copiar:', err);
+                    showAlert("❌ Error", "No se pudo copiar el costo.");
+                }
+
+                document.body.removeChild(textArea);
+
+            } catch (error) {
+                console.error("Error al generar texto para copiar:", error);
+                showAlert("❌ Error Fatal", `No se pudo generar el texto. Error: ${error.message}`);
+            }
+        }
 
 
         // =====================================================================
-        // INICIALIZACIÓN (Actualizado para v23)
+        // INICIALIZACIÓN (Actualizado para v24)
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
             try {
@@ -1170,14 +1230,14 @@
                 button.addEventListener('click', () => switchTab(button.dataset.tab));
             });
             addIngredientRowBtn.addEventListener('click', addIngredientRow);
-            
-            // (Fix v23) Listener para el botón de "Crear Receta"
             addNewRecipeBtn.addEventListener('click', addNewRecipe);
-
             calculateButton.addEventListener('click', calculateCost);
             alertModalCloseBtn.addEventListener('click', hideAlert);
             alertModalCloseIcon.addEventListener('click', hideAlert);
             copyListBtn.addEventListener('click', copyShoppingList);
+            
+            // (Fix v24) Nuevo listener
+            copyCostBtn.addEventListener('click', copyRecipeCost);
 
             alertModal.addEventListener('click', (e) => {
                 if (e.target === alertModal) hideAlert();
@@ -1196,31 +1256,25 @@
                 const index = parseInt(button.dataset.index);
                 updateLocalDataFromUI(); 
                 localIngredients.splice(index, 1); 
-                handleDataChange(false, true); // skipUpdate = true
+                handleDataChange(false, true); 
                 markUnsavedChanges();
             }
             
             window.deleteRecipeRow = function(button) {
-                // (Fix v23) El índice ahora es el índice global de localRecipes
                 const index = parseInt(button.dataset.index);
                 
-                // (Fix v23) Necesitamos encontrar el objeto por su índice global para borrarlo
-                // Tenemos que iterar para encontrar el objeto correcto
-                let itemFound = false;
-                for (let i = 0; i < localRecipes.length; i++) {
-                    // El 'index' en el botón corresponde al índice de 'localRecipes'
-                    if (i === index) {
-                        localRecipes.splice(i, 1);
-                        itemFound = true;
-                        break;
-                    }
-                }
-
-                if (itemFound) {
+                // (Fix v24) La lógica de borrado debe ser más robusta
+                // El 'index' del botón es el 'globalIndex' que asignamos al renderizar.
+                const recipeToRemove = localRecipes[index];
+                
+                if (recipeToRemove) {
+                    localRecipes.splice(index, 1);
                     handleDataChange(true, true); // updateCalc = true, skipUpdate = true
                     markUnsavedChanges();
                 } else {
+                     // Fallback por si el índice falla
                     console.error("No se pudo borrar la fila de receta, índice no encontrado:", index);
+                    handleDataChange(true, false); // Forzar re-lectura
                 }
             }
         });
